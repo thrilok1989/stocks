@@ -7,9 +7,18 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import yfinance as yf
 from datetime import datetime, timedelta
 import pytz
+
+# Try importing yfinance, but make it optional
+try:
+    import yfinance as yf
+    HAS_YFINANCE = True
+except ImportError as e:
+    print(f"⚠️ yfinance import failed: {e}")
+    print("⚠️ Advanced Chart Analysis features will be limited without yfinance")
+    yf = None
+    HAS_YFINANCE = False
 
 # Indian Standard Time (IST)
 IST = pytz.timezone('Asia/Kolkata')
