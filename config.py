@@ -1,9 +1,8 @@
 """
 Configuration settings for NIFTY/SENSEX Manual Trader
-All sensitive credentials are loaded from Streamlit secrets
+All sensitive credentials are loaded from environment variables (.env file)
 """
 
-import streamlit as st
 import pytz
 from datetime import datetime
 import os
@@ -20,60 +19,90 @@ def get_current_time_ist():
     return datetime.now(IST)
 
 # ═══════════════════════════════════════════════════════════════════════
-# CREDENTIALS - Loaded from Streamlit Secrets
+# CREDENTIALS - Loaded from Environment Variables (.env file)
 # ═══════════════════════════════════════════════════════════════════════
 
 def get_dhan_credentials():
-    """Load DhanHQ credentials from secrets"""
+    """Load DhanHQ credentials from environment variables"""
     try:
+        client_id = os.getenv("DHAN_CLIENT_ID", "")
+        access_token = os.getenv("DHAN_ACCESS_TOKEN", "")
+
+        if not client_id or client_id == "your_client_id_here":
+            print(f"⚠️ DhanHQ CLIENT_ID not configured in .env file")
+            return None
+
+        if not access_token or access_token == "your_access_token_here":
+            print(f"⚠️ DhanHQ ACCESS_TOKEN not configured in .env file")
+            return None
+
         return {
-            'client_id': st.secrets["DHAN"]["CLIENT_ID"],
-            'access_token': st.secrets["DHAN"].get("ACCESS_TOKEN", ""),
-            'api_key': st.secrets["DHAN"].get("API_KEY", ""),
-            'api_secret': st.secrets["DHAN"].get("API_SECRET", "")
+            'client_id': client_id,
+            'access_token': access_token,
+            'api_key': os.getenv("DHAN_API_KEY", ""),
+            'api_secret': os.getenv("DHAN_API_SECRET", "")
         }
     except Exception as e:
-        print(f"⚠️ DhanHQ credentials missing: {e}")
+        print(f"⚠️ DhanHQ credentials error: {e}")
         return None
 
 def get_telegram_credentials():
-    """Load Telegram credentials from secrets"""
+    """Load Telegram credentials from environment variables"""
     try:
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+
+        if not bot_token or bot_token == "your_telegram_bot_token_here":
+            return {'enabled': False}
+
+        if not chat_id or chat_id == "your_telegram_chat_id_here":
+            return {'enabled': False}
+
         return {
-            'bot_token': st.secrets["TELEGRAM"]["BOT_TOKEN"],
-            'chat_id': st.secrets["TELEGRAM"]["CHAT_ID"],
+            'bot_token': bot_token,
+            'chat_id': chat_id,
             'enabled': True
         }
     except Exception as e:
-        print(f"⚠️ Telegram credentials missing: {e}")
+        print(f"⚠️ Telegram credentials error: {e}")
         return {'enabled': False}
 
 # ═══════════════════════════════════════════════════════════════════════
-# AI CONFIGURATION - Loaded from Streamlit Secrets
+# AI CONFIGURATION - Loaded from Environment Variables (.env file)
 # ═══════════════════════════════════════════════════════════════════════
 
 def get_perplexity_credentials():
-    """Load Perplexity credentials from secrets"""
+    """Load Perplexity credentials from environment variables"""
     try:
+        api_key = os.getenv("PERPLEXITY_API_KEY", "")
+
+        if not api_key or api_key == "your_perplexity_api_key_here":
+            return {'enabled': False}
+
         return {
-            'api_key': st.secrets["PERPLEXITY"]["API_KEY"],
-            'model': st.secrets["PERPLEXITY"].get("MODEL", "sonar"),
-            'search_depth': st.secrets["PERPLEXITY"].get("SEARCH_DEPTH", "medium"),
+            'api_key': api_key,
+            'model': os.getenv("PERPLEXITY_MODEL", "sonar"),
+            'search_depth': os.getenv("PERPLEXITY_SEARCH_DEPTH", "medium"),
             'enabled': True
         }
     except Exception as e:
-        print(f"⚠️ Perplexity credentials missing: {e}")
+        print(f"⚠️ Perplexity credentials error: {e}")
         return {'enabled': False}
 
 def get_newsdata_credentials():
-    """Load NewsData credentials from secrets"""
+    """Load NewsData credentials from environment variables"""
     try:
+        api_key = os.getenv("NEWSDATA_API_KEY", "")
+
+        if not api_key or api_key == "your_newsdata_api_key_here":
+            return {'enabled': False}
+
         return {
-            'api_key': st.secrets["NEWSDATA"]["API_KEY"],
+            'api_key': api_key,
             'enabled': True
         }
     except Exception as e:
-        print(f"⚠️ NewsData credentials missing: {e}")
+        print(f"⚠️ NewsData credentials error: {e}")
         return {'enabled': False}
 
 # AI Settings
