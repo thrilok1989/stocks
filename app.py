@@ -42,11 +42,20 @@ from ai_tab_integration import render_master_ai_analysis_tab, render_advanced_an
 logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════════════════════
+# GET SPOT PRICE FOR BROWSER TAB TITLE
+# ═══════════════════════════════════════════════════════════════════════
+# Get spot price from session state or cache for dynamic page title
+page_title = "NIFTY/SENSEX Trader"
+if 'last_spot_price' in st.session_state and st.session_state.last_spot_price:
+    spot = st.session_state.last_spot_price
+    page_title = f"NIFTY ₹{spot:,.2f} | Trader"
+
+# ═══════════════════════════════════════════════════════════════════════
 # PAGE CONFIG & PERFORMANCE OPTIMIZATION
 # ═══════════════════════════════════════════════════════════════════════
 
 st.set_page_config(
-    page_title="NIFTY/SENSEX Trader",
+    page_title=page_title,
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -449,7 +458,7 @@ if 'overall_option_data' not in st.session_state:
 # - Lazy loading for tab-specific data
 # - Streamlit caching for expensive computations
 
-# Auto-refresh every 60 seconds (configurable via AUTO_REFRESH_INTERVAL)
+# Auto-refresh every 1 minute (configurable via AUTO_REFRESH_INTERVAL)
 # This ensures the app stays updated with latest market data
 # The refresh is seamless - no blur/flash thanks to custom CSS above
 refresh_count = st_autorefresh(interval=AUTO_REFRESH_INTERVAL * 1000, key="data_refresh")
@@ -659,6 +668,25 @@ if not nifty_data or not nifty_data.get('success'):
     }
     # Note: We don't stop() here - let the app continue and show what it can
 
+# Store spot price in session state for browser tab title (used at top of script)
+if nifty_data and nifty_data.get('success') and nifty_data.get('spot_price'):
+    st.session_state.last_spot_price = nifty_data['spot_price']
+    # Update browser tab title with current spot price using JavaScript
+    spot_price = nifty_data['spot_price']
+    st.markdown(f"""
+    <script>
+        // Update browser tab title to always show spot price
+        document.title = "NIFTY ₹{spot_price:,.2f} | Trader";
+    </script>
+    """, unsafe_allow_html=True)
+else:
+    # Use default title if spot price unavailable
+    st.markdown("""
+    <script>
+        document.title = "NIFTY/SENSEX Trader";
+    </script>
+    """, unsafe_allow_html=True)
+
 # ═══════════════════════════════════════════════════════════════════════
 # CACHED CHART DATA FETCHER (Performance Optimization)
 # ═══════════════════════════════════════════════════════════════════════
@@ -668,13 +696,13 @@ if 'chart_data_cache' not in st.session_state:
 if 'chart_data_cache_time' not in st.session_state:
     st.session_state.chart_data_cache_time = {}
 
-@st.cache_data(ttl=120, show_spinner=False)  # Increased from 60s to 120s for better performance
+@st.cache_data(ttl=60, show_spinner=False)  # 60 seconds (1 minute)
 def get_cached_chart_data(symbol, period, interval):
     """Cached chart data fetcher - reduces API calls"""
     chart_analyzer = AdvancedChartAnalysis()
     return chart_analyzer.fetch_intraday_data(symbol, period=period, interval=interval)
 
-@st.cache_data(ttl=120, show_spinner=False)  # Increased from 60s to 120s for better performance
+@st.cache_data(ttl=60, show_spinner=False)  # 60 seconds (1 minute)
 def calculate_vob_indicators(df_key, sensitivity=5):
     """Cached VOB calculation - reduces redundant computations"""
     from indicators.volume_order_blocks import VolumeOrderBlocks
@@ -689,7 +717,7 @@ def calculate_vob_indicators(df_key, sensitivity=5):
     vob_indicator = VolumeOrderBlocks(sensitivity=sensitivity)
     return vob_indicator.calculate(df)
 
-@st.cache_data(ttl=120, show_spinner=False)  # Increased from 60s to 120s for better performance
+@st.cache_data(ttl=60, show_spinner=False)  # 60 seconds (1 minute)
 def calculate_sentiment():
     """Cached sentiment calculation"""
     try:
@@ -1839,20 +1867,18 @@ st.divider()
 # ═══════════════════════════════════════════════════════════════════════
 
 # Native tabs - work seamlessly on mobile and desktop, no multiple clicks needed
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🌟 Overall Market Sentiment",
     "🎯 Trade Setup",
     "📊 Active Signals",
     "📈 Positions",
     "🎲 Bias Analysis Pro",
-    "🔍 Option Chain Analysis",
     "📉 Advanced Chart Analysis",
     "🎯 NIFTY Option Screener v7.0",
     "🌐 Enhanced Market Data",
-    "🤖 MASTER AI ANALYSIS",
-    "🔬 Advanced Analytics",
-    "📜 Signal History & Performance"
+    "🔍 NSE Stock Screener"
 ])
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # TAB 1: OVERALL MARKET SENTIMENT
@@ -2736,27 +2762,10 @@ with tab5:
         """)
 
 # ═══════════════════════════════════════════════════════════════════════
-# TAB 6: OPTION CHAIN ANALYSIS (Nifty Option Screener v7.0)
+# TAB 6: ADVANCED CHART ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════
 
 with tab6:
-    st.header("🔍 Option Chain Analysis")
-    st.info("📌 The NIFTY Option Screener v7.0 has been moved to **Tab 8** for better organization.")
-    st.markdown("""
-    ### Available in Tab 8:
-    - 🎯 NIFTY Option Screener v7.0
-    - 100% SELLER'S PERSPECTIVE
-    - ATM BIAS ANALYZER
-    - MOMENT DETECTOR
-    - EXPIRY SPIKE DETECTOR
-    - ENHANCED OI/PCR ANALYTICS
-    """)
-
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 7: ADVANCED CHART ANALYSIS
-# ═══════════════════════════════════════════════════════════════════════
-
-with tab7:
     st.header("📈 Advanced Chart Analysis")
     st.caption("TradingView-style Chart with Advanced Indicators: Volume Bars, Volume Order Blocks, HTF Support/Resistance (3min, 5min, 10min, 15min levels), Volume Footprint (1D timeframe, 10 bins, Dynamic POC), Ultimate RSI, OM Indicator (Order Flow & Momentum), Advanced Price Action (BOS, CHOCH, Fibonacci, Geometric Patterns)")
 
@@ -2923,6 +2932,13 @@ with tab7:
 
     with col4:
         show_patterns = st.checkbox("📊 Geometric Patterns", value=True, key="show_patterns")
+
+    # New Advanced Indicators (LuxAlgo & BigBeluga)
+    st.markdown("**🎯 Advanced Reversal & Volume Analysis**")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        show_reversal_zones = st.checkbox("🎯 Reversal Probability Zones (LuxAlgo)", value=True, key="show_reversal_zones", help="Statistical reversal prediction with probability targets")
 
     st.divider()
 
@@ -3310,6 +3326,57 @@ with tab7:
                     key="dfp_show_volume_bars"
                 )
 
+    # Reversal Probability Zones Settings
+    if show_reversal_zones:
+        with st.expander("🎯 Reversal Probability Zones Settings (LuxAlgo)", expanded=False):
+            st.markdown("**Reversal Analysis Configuration**")
+            col1, col2, col3 = st.columns(3)
+
+            with col1:
+                rpz_swing_length = st.slider(
+                    "Swing Length",
+                    min_value=5,
+                    max_value=50,
+                    value=20,
+                    step=5,
+                    help="Lookback period for swing detection",
+                    key="rpz_swing_length"
+                )
+
+            with col2:
+                rpz_max_reversals = st.slider(
+                    "Max Historical Samples",
+                    min_value=100,
+                    max_value=2000,
+                    value=1000,
+                    step=100,
+                    help="Number of historical reversals to analyze",
+                    key="rpz_max_reversals"
+                )
+
+            with col3:
+                rpz_normalize = st.checkbox(
+                    "Normalize Data",
+                    value=False,
+                    help="Use percentage-based analysis",
+                    key="rpz_normalize"
+                )
+
+            st.markdown("**Probability Levels to Show**")
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                rpz_show_25 = st.checkbox("25th Percentile", value=True, key="rpz_show_25")
+
+            with col2:
+                rpz_show_50 = st.checkbox("50th Percentile", value=True, key="rpz_show_50")
+
+            with col3:
+                rpz_show_75 = st.checkbox("75th Percentile", value=True, key="rpz_show_75")
+
+            with col4:
+                rpz_show_90 = st.checkbox("90th Percentile", value=True, key="rpz_show_90")
+
     st.divider()
 
     # Display chart if data is available
@@ -3338,8 +3405,8 @@ with tab7:
 
                 footprint_params = {
                     'bins': footprint_bins if show_footprint else 10,
-                    'timeframe': footprint_timeframe if show_footprint else 'D',
-                    'dynamic_poc': footprint_dynamic_poc if show_footprint else True
+                    'timeframe': footprint_timeframe if show_footprint else '1D',
+                    'show_dynamic_poc': footprint_dynamic_poc if show_footprint else True
                 } if show_footprint else None
 
                 rsi_params = {
@@ -3398,6 +3465,16 @@ with tab7:
                     'show_volume_bars': dfp_show_volume_bars if show_deltaflow_profile else True
                 } if show_deltaflow_profile else None
 
+                reversal_zones_params = {
+                    'swing_length': rpz_swing_length if show_reversal_zones else 20,
+                    'max_reversals': rpz_max_reversals if show_reversal_zones else 1000,
+                    'normalize_data': rpz_normalize if show_reversal_zones else False,
+                    'percentile_25': rpz_show_25 if show_reversal_zones else True,
+                    'percentile_50': rpz_show_50 if show_reversal_zones else True,
+                    'percentile_75': rpz_show_75 if show_reversal_zones else True,
+                    'percentile_90': rpz_show_90 if show_reversal_zones else True
+                } if show_reversal_zones else None
+
                 # Create chart with selected indicators
                 chart_analyzer = get_advanced_chart_analyzer()
                 fig = chart_analyzer.create_advanced_chart(
@@ -3416,6 +3493,7 @@ with tab7:
                     show_choch=show_choch,
                     show_fibonacci=show_fibonacci,
                     show_patterns=show_patterns,
+                    show_reversal_zones=show_reversal_zones,
                     vob_params=vob_params,
                     htf_params=htf_params,
                     footprint_params=footprint_params,
@@ -3423,7 +3501,8 @@ with tab7:
                     om_params=om_params,
                     liquidity_params=liquidity_params,
                     money_flow_params=money_flow_params,
-                    deltaflow_params=deltaflow_params
+                    deltaflow_params=deltaflow_params,
+                    reversal_zones_params=reversal_zones_params
                 )
 
                 # Display chart
@@ -3481,19 +3560,23 @@ with tab7:
                     indicator_tabs.append("⚡ DeltaFlow Profile")
                 if show_bos or show_choch or show_fibonacci or show_patterns:
                     indicator_tabs.append("🎯 Price Action")
+                if show_reversal_zones:
+                    indicator_tabs.append("🎯 Reversal Zones")
 
                 if indicator_tabs:
                     tabs = st.tabs(indicator_tabs)
                     tab_idx = 0
 
-                    # Market Regime Dashboard (Always first tab)
+                    # Market Regime Dashboard (Always first tab) - EXPANDED ML VERSION
                     with tabs[tab_idx]:
-                        from ml.market_regime_detector import MarketRegimeDetector
+                        from src.ml_market_regime import MLMarketRegimeDetector
+                        from enhanced_market_data import EnhancedMarketData
+                        from bias_analysis import BiasAnalysisPro
 
-                        st.markdown("### 🎯 Market Regime Analysis")
-                        st.caption("AI-powered market regime detection using all indicators")
+                        st.markdown("### 🎯 ML Market Regime Analysis")
+                        st.caption("🚀 AI-powered market regime detection using ALL available data sources")
 
-                        # Collect indicator data
+                        # Collect indicator data for regime detection
                         regime_indicator_data = {}
 
                         # BOS data
@@ -3505,21 +3588,6 @@ with tab7:
                         else:
                             regime_indicator_data['bos'] = []
                             regime_indicator_data['choch'] = []
-
-                        # HTF SR data
-                        if show_htf_sr and htf_params:
-                            from indicators.htf_support_resistance import HTFSupportResistance
-                            htf_levels_for_regime = []
-                            for level_config in htf_params.get('levels_config', []):
-                                htf_indicator = HTFSupportResistance(
-                                    timeframes=[level_config['timeframe']],
-                                    pivot_length=level_config['length']
-                                )
-                                levels = htf_indicator.calculate_levels(df_stats)
-                                htf_levels_for_regime.extend(levels)
-                            regime_indicator_data['htf_sr'] = htf_levels_for_regime
-                        else:
-                            regime_indicator_data['htf_sr'] = []
 
                         # Order Blocks data
                         if show_vob:
@@ -3545,33 +3613,123 @@ with tab7:
                             dfp_for_regime = DeltaFlowVolumeProfile(**deltaflow_params) if deltaflow_params else DeltaFlowVolumeProfile(bins=30)
                             regime_indicator_data['deltaflow_profile'] = dfp_for_regime.get_signals(df_stats)
 
-                        # Detect regime
-                        regime_detector = MarketRegimeDetector()
-                        regime_result = regime_detector.detect_regime(df_stats, regime_indicator_data)
+                        # Reversal Probability Zones data
+                        reversal_zones_result = None
+                        if show_reversal_zones:
+                            from indicators.reversal_probability_zones import ReversalProbabilityZones
+                            rpz_for_regime = ReversalProbabilityZones(**reversal_zones_params) if reversal_zones_params else ReversalProbabilityZones()
+                            reversal_zones_result = rpz_for_regime.calculate(df_stats)
+
+                        # HTF Volume Footprint data
+                        volume_footprint_result = None
+                        if show_footprint:
+                            from indicators.htf_volume_footprint import HTFVolumeFootprint
+                            footprint_for_regime = HTFVolumeFootprint(**footprint_params) if footprint_params else HTFVolumeFootprint()
+                            volume_footprint_result = footprint_for_regime.get_signals(df_stats)
+
+                        # Fetch additional data sources
+                        with st.spinner("Fetching comprehensive market data..."):
+                            # Enhanced market data (sector rotation, VIX, gamma squeeze)
+                            enhanced_data_fetcher = EnhancedMarketData()
+
+                            sector_rotation_data = enhanced_data_fetcher.analyze_sector_rotation()
+                            india_vix_data = enhanced_data_fetcher.fetch_india_vix()
+                            gamma_squeeze_data = enhanced_data_fetcher.detect_gamma_squeeze('NIFTY')
+
+                            # Bias analysis
+                            bias_analyzer = BiasAnalysisPro()
+                            bias_analysis_data = bias_analyzer.analyze_all_bias_indicators(data=df_stats)
+
+                            # Option chain data (from session state)
+                            option_chain_data = None
+                            if 'overall_option_data' in st.session_state:
+                                option_chain_data = st.session_state.overall_option_data.get('NIFTY')
+
+                        # Detect regime using ML with ALL data sources
+                        regime_detector = MLMarketRegimeDetector()
+                        regime_result = regime_detector.detect_regime(
+                            df_stats,
+                            cvd_result=None,
+                            volatility_result=None,
+                            oi_trap_result=None,
+                            option_chain_data=option_chain_data,
+                            sector_rotation_data=sector_rotation_data,
+                            bias_analysis_data=bias_analysis_data,
+                            india_vix_data=india_vix_data,
+                            gamma_squeeze_data=gamma_squeeze_data,
+                            advanced_chart_indicators=regime_indicator_data,
+                            reversal_zones_data=reversal_zones_result,
+                            volume_footprint_data=volume_footprint_result
+                        )
+
+                        # ═══════════════════════════════════════════════════════════════
+                        # TRADING SENTIMENT - PROMINENT DISPLAY (LONG/SHORT)
+                        # ═══════════════════════════════════════════════════════════════
+                        sentiment = regime_result.trading_sentiment
+                        sentiment_conf = regime_result.sentiment_confidence
+                        sentiment_score = regime_result.sentiment_score
+
+                        # Determine color based on sentiment
+                        if "STRONG LONG" in sentiment:
+                            sentiment_color = "#00ff88"  # Bright green
+                            bg_color = "rgba(0, 255, 136, 0.15)"
+                        elif "LONG" in sentiment:
+                            sentiment_color = "#00cc66"  # Green
+                            bg_color = "rgba(0, 204, 102, 0.15)"
+                        elif "STRONG SHORT" in sentiment:
+                            sentiment_color = "#ff4444"  # Bright red
+                            bg_color = "rgba(255, 68, 68, 0.15)"
+                        elif "SHORT" in sentiment:
+                            sentiment_color = "#ff6666"  # Red
+                            bg_color = "rgba(255, 102, 102, 0.15)"
+                        else:  # NEUTRAL
+                            sentiment_color = "#66b3ff"  # Blue
+                            bg_color = "rgba(102, 179, 255, 0.15)"
+
+                        # Big bold sentiment display
+                        st.markdown(f"""
+                        <div style="
+                            background: {bg_color};
+                            padding: 30px;
+                            border-radius: 15px;
+                            border-left: 8px solid {sentiment_color};
+                            text-align: center;
+                            margin-bottom: 20px;
+                        ">
+                            <div style='font-size: 1.2rem; color:#cccccc; margin-bottom:10px;'>
+                                📊 MARKET SENTIMENT (Based on ALL Indicators)
+                            </div>
+                            <div style='font-size: 4rem; color:{sentiment_color}; font-weight:900; margin:10px 0;'>
+                                {sentiment}
+                            </div>
+                            <div style='font-size: 1.5rem; color:{sentiment_color}; margin-top:10px;'>
+                                Confidence: {sentiment_conf:.1f}% | Score: {sentiment_score:+.1f}
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        st.divider()
 
                         # Display regime info
                         col1, col2, col3 = st.columns(3)
 
                         with col1:
-                            regime = regime_result['regime']
+                            regime = regime_result.regime
                             regime_emoji = {
-                                'STRONG_UPTREND': '🚀',
-                                'WEAK_UPTREND': '📈',
-                                'RANGING': '↔️',
-                                'WEAK_DOWNTREND': '📉',
-                                'STRONG_DOWNTREND': '💥',
-                                'REVERSAL_TO_UPTREND': '🔄📈',
-                                'REVERSAL_TO_DOWNTREND': '🔄📉',
-                                'UNCERTAIN': '❓'
+                                'Trending Up': '🚀',
+                                'Trending Down': '📉',
+                                'Range Bound': '↔️',
+                                'Volatile Breakout': '⚡',
+                                'Consolidation': '🔄'
                             }
                             st.metric(
                                 "Current Regime",
-                                f"{regime_emoji.get(regime, '🎯')} {regime.replace('_', ' ').title()}",
+                                f"{regime_emoji.get(regime, '🎯')} {regime}",
                                 delta=None
                             )
 
                         with col2:
-                            confidence_pct = regime_result['confidence'] * 100
+                            confidence_pct = regime_result.confidence
                             confidence_color = '🟢' if confidence_pct > 70 else '🟡' if confidence_pct > 50 else '🔴'
                             st.metric(
                                 "Confidence",
@@ -3580,76 +3738,191 @@ with tab7:
                             )
 
                         with col3:
-                            volatility = regime_result['volatility']
-                            vol_emoji = {'HIGH_VOLATILITY': '⚡', 'NORMAL_VOLATILITY': '📊', 'LOW_VOLATILITY': '💤'}
                             st.metric(
                                 "Volatility",
-                                f"{vol_emoji.get(volatility, '📊')} {volatility.replace('_', ' ').title()}",
+                                f"📊 {regime_result.volatility_state}",
                                 delta=None
                             )
 
                         st.divider()
+
+                        # Display Support/Resistance Levels
+                        if regime_result.support_resistance:
+                            st.markdown("### 🎯 Support & Resistance Levels")
+
+                            sr_levels = regime_result.support_resistance
+                            col1, col2 = st.columns(2)
+
+                            with col1:
+                                st.markdown("#### 📈 Resistance Levels")
+                                resistance_data = []
+                                if sr_levels.get('near_resistance'):
+                                    resistance_data.append({
+                                        'Type': 'Near Resistance',
+                                        'Level': f"₹{sr_levels['near_resistance']:.2f}",
+                                        'Distance': f"{((sr_levels['near_resistance'] - sr_levels['current_price']) / sr_levels['current_price'] * 100):.2f}%"
+                                    })
+                                if sr_levels.get('major_resistance'):
+                                    resistance_data.append({
+                                        'Type': 'Major Resistance',
+                                        'Level': f"₹{sr_levels['major_resistance']:.2f}",
+                                        'Distance': f"{((sr_levels['major_resistance'] - sr_levels['current_price']) / sr_levels['current_price'] * 100):.2f}%"
+                                    })
+                                for i, r in enumerate(sr_levels.get('all_resistances', [])[:3], 1):
+                                    resistance_data.append({
+                                        'Type': f'R{i}',
+                                        'Level': f"₹{r:.2f}",
+                                        'Distance': f"{((r - sr_levels['current_price']) / sr_levels['current_price'] * 100):.2f}%"
+                                    })
+
+                                if resistance_data:
+                                    st.dataframe(pd.DataFrame(resistance_data), use_container_width=True, hide_index=True)
+                                else:
+                                    st.info("No resistance levels detected")
+
+                            with col2:
+                                st.markdown("#### 📉 Support Levels")
+                                support_data = []
+                                if sr_levels.get('near_support'):
+                                    support_data.append({
+                                        'Type': 'Near Support',
+                                        'Level': f"₹{sr_levels['near_support']:.2f}",
+                                        'Distance': f"{((sr_levels['current_price'] - sr_levels['near_support']) / sr_levels['current_price'] * 100):.2f}%"
+                                    })
+                                if sr_levels.get('major_support'):
+                                    support_data.append({
+                                        'Type': 'Major Support',
+                                        'Level': f"₹{sr_levels['major_support']:.2f}",
+                                        'Distance': f"{((sr_levels['current_price'] - sr_levels['major_support']) / sr_levels['current_price'] * 100):.2f}%"
+                                    })
+                                for i, s in enumerate(sr_levels.get('all_supports', [])[:3], 1):
+                                    support_data.append({
+                                        'Type': f'S{i}',
+                                        'Level': f"₹{s:.2f}",
+                                        'Distance': f"{((sr_levels['current_price'] - s) / sr_levels['current_price'] * 100):.2f}%"
+                                    })
+
+                                if support_data:
+                                    st.dataframe(pd.DataFrame(support_data), use_container_width=True, hide_index=True)
+                                else:
+                                    st.info("No support levels detected")
+
+                            st.divider()
+
+                        # Display Entry/Exit Signals
+                        if regime_result.entry_exit_signals:
+                            st.markdown("### 🎯 Entry/Exit Trading Signals")
+
+                            entry_exit = regime_result.entry_exit_signals
+
+                            col1, col2, col3 = st.columns(3)
+
+                            with col1:
+                                action_emoji = {
+                                    'BUY_ON_PULLBACK': '📈',
+                                    'SELL_ON_RALLY': '📉',
+                                    'BUY_ON_BREAK': '🚀',
+                                    'SELL_ON_BREAK': '💥',
+                                    'RANGE_TRADE': '↔️',
+                                    'WAIT': '⏸️',
+                                    'WAIT_FOR_CONFIRMATION': '⏳'
+                                }
+                                st.metric(
+                                    "Action",
+                                    f"{action_emoji.get(entry_exit['action'], '🎯')} {entry_exit['action'].replace('_', ' ').title()}",
+                                    delta=None
+                                )
+
+                            with col2:
+                                direction_emoji = {'LONG': '🟢', 'SHORT': '🔴', 'NEUTRAL': '⚪', 'BOTH': '🔵'}
+                                st.metric(
+                                    "Direction",
+                                    f"{direction_emoji.get(entry_exit['direction'], '⚪')} {entry_exit['direction']}",
+                                    delta=None
+                                )
+
+                            with col3:
+                                if entry_exit.get('risk_reward'):
+                                    rr_color = '🟢' if entry_exit['risk_reward'] > 2 else '🟡' if entry_exit['risk_reward'] > 1.5 else '🔴'
+                                    st.metric(
+                                        "Risk:Reward",
+                                        f"{rr_color} 1:{entry_exit['risk_reward']:.2f}",
+                                        delta=None
+                                    )
+                                else:
+                                    st.metric("Risk:Reward", "N/A", delta=None)
+
+                            # Trading Levels
+                            if entry_exit.get('entry_level') and isinstance(entry_exit['entry_level'], (int, float)):
+                                st.markdown("#### 📊 Trading Levels")
+                                levels_data = []
+                                levels_data.append({
+                                    'Level': 'Entry',
+                                    'Price': f"₹{entry_exit['entry_level']:.2f}"
+                                })
+                                if entry_exit.get('stop_loss'):
+                                    levels_data.append({
+                                        'Level': 'Stop Loss',
+                                        'Price': f"₹{entry_exit['stop_loss']:.2f}"
+                                    })
+                                if entry_exit.get('target_1'):
+                                    levels_data.append({
+                                        'Level': 'Target 1',
+                                        'Price': f"₹{entry_exit['target_1']:.2f}"
+                                    })
+                                if entry_exit.get('target_2'):
+                                    levels_data.append({
+                                        'Level': 'Target 2',
+                                        'Price': f"₹{entry_exit['target_2']:.2f}"
+                                    })
+                                st.dataframe(pd.DataFrame(levels_data), use_container_width=True, hide_index=True)
+
+                            # Reasoning
+                            if entry_exit.get('reasoning'):
+                                st.markdown("#### 💡 Trading Rationale")
+                                for reason in entry_exit['reasoning']:
+                                    st.markdown(f"• {reason}")
+
+                            st.divider()
 
                         # Regime Details
                         col1, col2 = st.columns(2)
 
                         with col1:
                             st.markdown("#### 📊 Regime Indicators")
-                            trend_dir = regime_result['trend_direction']
-                            trend_strength = regime_result['trend_strength']
-
                             indicator_data = []
                             indicator_data.append({
-                                'Indicator': 'Trend Direction',
-                                'Value': f"{'🟢' if trend_dir == 'BULLISH' else '🔴' if trend_dir == 'BEARISH' else '⚪'} {trend_dir}"
-                            })
-                            indicator_data.append({
                                 'Indicator': 'Trend Strength',
-                                'Value': f"{trend_strength:.1%}"
+                                'Value': f"{regime_result.trend_strength:.1f}%"
                             })
                             indicator_data.append({
-                                'Indicator': 'Ranging Market',
-                                'Value': '✅ Yes' if regime_result['is_ranging'] else '❌ No'
+                                'Indicator': 'Market Phase',
+                                'Value': regime_result.market_phase
                             })
                             indicator_data.append({
-                                'Indicator': 'Reversal Signal',
-                                'Value': '⚠️ Detected' if regime_result['reversal_signal'] else '✅ None'
+                                'Indicator': 'Optimal Timeframe',
+                                'Value': regime_result.optimal_timeframe
                             })
 
                             st.dataframe(pd.DataFrame(indicator_data), use_container_width=True, hide_index=True)
 
                         with col2:
-                            st.markdown("#### 💡 Trading Recommendations")
-                            recs = regime_result['recommendations']
+                            st.markdown("#### 💡 Trading Strategy")
+                            st.info(regime_result.recommended_strategy)
 
-                            rec_data = []
-                            rec_data.append({
-                                'Recommendation': 'Position Bias',
-                                'Value': recs['position_bias']
-                            })
-                            rec_data.append({
-                                'Recommendation': 'Strategy',
-                                'Value': recs['strategy'].replace('_', ' ').title()
-                            })
-                            rec_data.append({
-                                'Recommendation': 'Position Size',
-                                'Value': f"{recs['position_size_multiplier']:.1f}x"
-                            })
-                            rec_data.append({
-                                'Recommendation': 'Stop Loss Width',
-                                'Value': f"{recs['stop_loss_multiplier']:.1f}x"
-                            })
+                        # All Signals
+                        if regime_result.signals:
+                            st.markdown("#### 🎯 Market Signals")
+                            signal_cols = st.columns(2)
+                            mid = len(regime_result.signals) // 2
 
-                            st.dataframe(pd.DataFrame(rec_data), use_container_width=True, hide_index=True)
+                            with signal_cols[0]:
+                                for signal in regime_result.signals[:mid]:
+                                    st.markdown(f"• {signal}")
 
-                        # Allowed Setups
-                        st.markdown("#### ✅ Recommended Trade Setups")
-                        allowed_setups = recs['allowed_setups']
-                        if allowed_setups:
-                            for setup in allowed_setups:
-                                st.markdown(f"• {setup}")
-                        else:
-                            st.info("No specific setups recommended in current regime")
+                            with signal_cols[1]:
+                                for signal in regime_result.signals[mid:]:
+                                    st.markdown(f"• {signal}")
 
                     tab_idx += 1
 
@@ -4229,6 +4502,128 @@ with tab7:
                                 else:
                                     st.info("No patterns detected")
 
+                        tab_idx += 1
+
+                    # Reversal Probability Zones Data (LuxAlgo)
+                    if show_reversal_zones:
+                        with tabs[tab_idx]:
+                            st.markdown("#### 🎯 Reversal Probability Zones Analysis (LuxAlgo)")
+                            st.caption("Statistical reversal prediction with probability targets")
+
+                            if reversal_zones_result and reversal_zones_result.get('success'):
+                                zone = reversal_zones_result.get('zone')
+                                current_price = reversal_zones_result.get('current_price', 0)
+
+                                # Zone Direction and Base Info
+                                col1, col2, col3 = st.columns(3)
+
+                                with col1:
+                                    direction = "🟢 Bullish" if zone.is_bullish else "🔴 Bearish"
+                                    st.metric("Expected Reversal", direction)
+
+                                with col2:
+                                    st.metric("Swing Price", f"₹{zone.price:.2f}")
+
+                                with col3:
+                                    st.metric("Current Price", f"₹{current_price:.2f}")
+
+                                st.divider()
+
+                                # Probability Targets
+                                st.markdown("**📊 Probability Targets**")
+
+                                targets_table = []
+                                if zone.percentile_25_price:
+                                    distance_pct = ((zone.percentile_25_price - current_price) / current_price) * 100
+                                    targets_table.append({
+                                        'Probability': '25%',
+                                        'Target Price': f"₹{zone.percentile_25_price:.2f}",
+                                        'Distance': f"{distance_pct:+.2f}%",
+                                        'Bars Expected': zone.percentile_25_bars
+                                    })
+
+                                if zone.percentile_50_price:
+                                    distance_pct = ((zone.percentile_50_price - current_price) / current_price) * 100
+                                    targets_table.append({
+                                        'Probability': '50%',
+                                        'Target Price': f"₹{zone.percentile_50_price:.2f}",
+                                        'Distance': f"{distance_pct:+.2f}%",
+                                        'Bars Expected': zone.percentile_50_bars
+                                    })
+
+                                if zone.percentile_75_price:
+                                    distance_pct = ((zone.percentile_75_price - current_price) / current_price) * 100
+                                    targets_table.append({
+                                        'Probability': '75%',
+                                        'Target Price': f"₹{zone.percentile_75_price:.2f}",
+                                        'Distance': f"{distance_pct:+.2f}%",
+                                        'Bars Expected': zone.percentile_75_bars
+                                    })
+
+                                if zone.percentile_90_price:
+                                    distance_pct = ((zone.percentile_90_price - current_price) / current_price) * 100
+                                    targets_table.append({
+                                        'Probability': '90%',
+                                        'Target Price': f"₹{zone.percentile_90_price:.2f}",
+                                        'Distance': f"{distance_pct:+.2f}%",
+                                        'Bars Expected': zone.percentile_90_bars
+                                    })
+
+                                if targets_table:
+                                    st.dataframe(pd.DataFrame(targets_table), use_container_width=True, hide_index=True)
+
+                                st.divider()
+
+                                # Historical Sample Info
+                                st.markdown("**📈 Historical Analysis**")
+                                col1, col2 = st.columns(2)
+
+                                with col1:
+                                    total_bullish = reversal_zones_result.get('total_bullish_samples', 0)
+                                    st.metric("Bullish Reversals Analyzed", total_bullish)
+
+                                with col2:
+                                    total_bearish = reversal_zones_result.get('total_bearish_samples', 0)
+                                    st.metric("Bearish Reversals Analyzed", total_bearish)
+
+                                # Recent Swings
+                                st.divider()
+                                st.markdown("**🔄 Recent Swing Points**")
+
+                                col1, col2 = st.columns(2)
+
+                                with col1:
+                                    st.markdown("**Swing Highs**")
+                                    swing_highs = reversal_zones_result.get('swing_highs', [])
+                                    if swing_highs:
+                                        highs_table = []
+                                        for sh in swing_highs[-5:]:
+                                            highs_table.append({
+                                                'Bar': sh.get('bar', 'N/A'),
+                                                'Price': f"₹{sh.get('price', 0):.2f}"
+                                            })
+                                        st.dataframe(pd.DataFrame(highs_table), use_container_width=True, hide_index=True)
+                                    else:
+                                        st.info("No swing highs detected")
+
+                                with col2:
+                                    st.markdown("**Swing Lows**")
+                                    swing_lows = reversal_zones_result.get('swing_lows', [])
+                                    if swing_lows:
+                                        lows_table = []
+                                        for sl in swing_lows[-5:]:
+                                            lows_table.append({
+                                                'Bar': sl.get('bar', 'N/A'),
+                                                'Price': f"₹{sl.get('price', 0):.2f}"
+                                            })
+                                        st.dataframe(pd.DataFrame(lows_table), use_container_width=True, hide_index=True)
+                                    else:
+                                        st.info("No swing lows detected")
+
+                            else:
+                                error_msg = reversal_zones_result.get('error', 'Unknown error') if reversal_zones_result else 'No data available'
+                                st.warning(f"⚠️ Unable to calculate reversal zones: {error_msg}")
+
                 # Trading signals based on indicators
                 st.divider()
                 st.subheader("🎯 Trading Signals")
@@ -4541,10 +4936,10 @@ with tab7:
         """)
 
 # ═══════════════════════════════════════════════════════════════════════
-# TAB 8: NIFTY OPTION SCREENER V7.0
+# TAB 7: NIFTY OPTION SCREENER V7.0
 # ═══════════════════════════════════════════════════════════════════════
 
-with tab8:
+with tab7:
     st.header("🎯 NIFTY Option Screener v7.0")
     st.caption("100% SELLER'S PERSPECTIVE + ATM BIAS ANALYZER + MOMENT DETECTOR + EXPIRY SPIKE DETECTOR + ENHANCED OI/PCR ANALYTICS")
 
@@ -4560,331 +4955,101 @@ with tab8:
         st.exception(e)
 
 # ═══════════════════════════════════════════════════════════════════════
-# TAB 9: ENHANCED MARKET DATA
+# TAB 8: ENHANCED MARKET DATA
+# ═══════════════════════════════════════════════════════════════════════
+
+with tab8:
+    st.markdown("# 🌐 Enhanced Market Data Analysis")
+    st.markdown("### ✅ Tab 8 LOADED")
+    st.write("=" * 50)
+    st.info("If you see this, tab 8 is working!")
+    st.write("=" * 50)
+
+    try:
+        st.caption("Comprehensive market data from Dhan API + Yahoo Finance | India VIX, Sector Rotation, Global Markets, Intermarket Data, Gamma Squeeze, Intraday Timing")
+
+        # DISABLED AUTO-FETCH - Only fetch when user clicks Refresh
+        # This prevents tab from hanging when Dhan API is down (holidays, weekends)
+        # Auto-fetch code commented out to prevent blank tabs
+
+        # Control buttons
+        col1, col2 = st.columns([1, 1])
+
+        with col1:
+            if st.button("🔄 Refresh Data", type="primary", use_container_width=True, key="refresh_enhanced_data_btn"):
+                with st.spinner("Refreshing market data..."):
+                    try:
+                        from enhanced_market_data import get_enhanced_market_data
+                        enhanced_data = get_enhanced_market_data()
+                        st.session_state.enhanced_market_data = enhanced_data
+                        st.success("✅ Data refreshed successfully!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Failed to refresh data: {e}")
+
+        with col2:
+            if 'enhanced_market_data' in st.session_state:
+                data = st.session_state.enhanced_market_data
+                st.caption(f"📅 Last Updated: {data['timestamp'].strftime('%Y-%m-%d %H:%M:%S IST')}")
+
+        # Display enhanced market data if available
+        if 'enhanced_market_data' in st.session_state:
+            try:
+                from enhanced_market_display import render_enhanced_market_data_tab
+                render_enhanced_market_data_tab(st.session_state.enhanced_market_data)
+            except Exception as e:
+                st.error(f"❌ Error displaying enhanced data: {e}")
+                import traceback
+                st.error(traceback.format_exc())
+        else:
+            st.info("""
+            ℹ️ Enhanced market data will auto-load on first visit and refresh every 5 minutes.
+
+            **Data Sources:**
+            - 📊 **Dhan API:** India VIX, All Sector Indices (IT, Auto, Pharma, Metal, FMCG, Realty, Energy)
+            - 🌍 **Yahoo Finance:** Global Markets (S&P 500, Nasdaq, Dow, Nikkei, Hang Seng, etc.)
+            - 💰 **Intermarket:** USD Index, Crude Oil, Gold, USD/INR, US 10Y Treasury, Bitcoin
+
+            **Advanced Analysis:**
+            - ⚡ **India VIX Analysis:** Fear & Greed Index with sentiment scoring
+            - 🏢 **Sector Rotation Model:** Identify market leadership and rotation patterns
+            - 🎯 **Gamma Squeeze Detection:** Option market makers hedging analysis
+            - ⏰ **Intraday Seasonality:** Time-based trading recommendations
+            - 🌐 **Global Correlation:** How worldwide markets affect Indian markets
+
+            **All data is presented in comprehensive tables with bias scores and trading insights!**
+            """)
+    except Exception as e:
+        st.error(f"❌ Critical error in Enhanced Market Data tab: {e}")
+        import traceback
+        st.code(traceback.format_exc())
+
+# ═══════════════════════════════════════════════════════════════════════
+# TAB 9: NSE STOCK SCREENER
 # ═══════════════════════════════════════════════════════════════════════
 
 with tab9:
-    st.header("🌐 Enhanced Market Data Analysis")
-    st.caption("Comprehensive market data from Dhan API + Yahoo Finance | India VIX, Sector Rotation, Global Markets, Intermarket Data, Gamma Squeeze, Intraday Timing")
-
-    # Auto-fetch enhanced market data if not already loaded or stale (older than 5 minutes)
-    should_fetch = False
-
-    if 'enhanced_market_data' not in st.session_state:
-        should_fetch = True
-    else:
-        # Check if data is older than 5 minutes
-        from datetime import timedelta
-        data_age = get_current_time_ist() - st.session_state.enhanced_market_data.get('timestamp', get_current_time_ist())
-        if data_age > timedelta(minutes=5):
-            should_fetch = True
-
-    if should_fetch:
-        with st.spinner("🔄 Auto-loading comprehensive market data from all sources..."):
-            try:
-                from enhanced_market_data import get_enhanced_market_data
-                enhanced_data = get_enhanced_market_data()
-                st.session_state.enhanced_market_data = enhanced_data
-                st.success("✅ Enhanced market data loaded successfully!")
-            except Exception as e:
-                st.error(f"❌ Failed to fetch enhanced data: {e}")
-                import traceback
-                st.error(traceback.format_exc())
-
-    # Control buttons
-    col1, col2 = st.columns([1, 1])
-
-    with col1:
-        if st.button("🔄 Refresh Data", type="primary", use_container_width=True, key="refresh_enhanced_data_btn"):
-            with st.spinner("Refreshing market data..."):
-                try:
-                    from enhanced_market_data import get_enhanced_market_data
-                    enhanced_data = get_enhanced_market_data()
-                    st.session_state.enhanced_market_data = enhanced_data
-                    st.success("✅ Data refreshed successfully!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Failed to refresh data: {e}")
-
-    with col2:
-        if 'enhanced_market_data' in st.session_state:
-            data = st.session_state.enhanced_market_data
-            st.caption(f"📅 Last Updated: {data['timestamp'].strftime('%Y-%m-%d %H:%M:%S IST')}")
-
-    # Display enhanced market data if available
-    if 'enhanced_market_data' in st.session_state:
-        try:
-            from enhanced_market_display import render_enhanced_market_data_tab
-            render_enhanced_market_data_tab(st.session_state.enhanced_market_data)
-        except Exception as e:
-            st.error(f"❌ Error displaying enhanced data: {e}")
-            import traceback
-            st.error(traceback.format_exc())
-    else:
-        st.info("""
-        ℹ️ Enhanced market data will auto-load on first visit and refresh every 5 minutes.
-
-        **Data Sources:**
-        - 📊 **Dhan API:** India VIX, All Sector Indices (IT, Auto, Pharma, Metal, FMCG, Realty, Energy)
-        - 🌍 **Yahoo Finance:** Global Markets (S&P 500, Nasdaq, Dow, Nikkei, Hang Seng, etc.)
-        - 💰 **Intermarket:** USD Index, Crude Oil, Gold, USD/INR, US 10Y Treasury, Bitcoin
-
-        **Advanced Analysis:**
-        - ⚡ **India VIX Analysis:** Fear & Greed Index with sentiment scoring
-        - 🏢 **Sector Rotation Model:** Identify market leadership and rotation patterns
-        - 🎯 **Gamma Squeeze Detection:** Option market makers hedging analysis
-        - ⏰ **Intraday Seasonality:** Time-based trading recommendations
-        - 🌐 **Global Correlation:** How worldwide markets affect Indian markets
-
-        **All data is presented in comprehensive tables with bias scores and trading insights!**
-        """)
-
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 10: MASTER AI ANALYSIS
-# ═══════════════════════════════════════════════════════════════════════
-
-with tab10:
-    # Add button to open in new tab
-    st.markdown("""
-    <div style="background-color: #1f77b4; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-        <h3 style="color: white; margin: 0 0 10px 0;">🚀 Open AI Analysis in New Browser Tab</h3>
-        <p style="color: white; margin: 0 0 10px 0;">Get a dedicated full-screen view of all AI analysis modules</p>
-        <a href="/🤖_AI_Analysis" target="_blank" style="text-decoration: none;">
-            <button style="
-                background-color: #4CAF50;
-                color: white;
-                padding: 12px 30px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 16px;
-                font-weight: bold;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            ">
-                🪟 Open in New Tab
-            </button>
-        </a>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
+    st.markdown("# 🔍 NSE Stock Screener")
+    st.markdown("### ✅ Tab 9 LOADED")
+    st.write("=" * 50)
+    st.info("If you see this, tab 9 is working!")
+    st.write("=" * 50)
 
     try:
-        # Auto-load market data if not already loaded
-        if 'data_df' not in st.session_state or st.session_state.data_df is None:
-            with st.spinner("📊 Loading NIFTY market data for analysis..."):
-                # Fetch NIFTY data
-                df = get_cached_chart_data('^NSEI', '1d', '1m')
-
-                if df is not None and not df.empty:
-                    # Add ATR indicator if not present
-                    if 'ATR' not in df.columns:
-                        from advanced_chart_analysis import AdvancedChartAnalysis
-                        chart_analyzer = AdvancedChartAnalysis()
-                        df = chart_analyzer.add_indicators(df)
-
-                    # Store in session state for reuse
-                    st.session_state.data_df = df
-                else:
-                    st.error("❌ Failed to load market data. Please check your connection and try again.")
-                    st.stop()
-
-        df = st.session_state.data_df
-
-        # Get option chain data
-        option_chain = {}
-        if 'overall_option_data' in st.session_state and st.session_state.overall_option_data:
-            option_chain = st.session_state.overall_option_data
-
-        # Get VIX data
-        vix_current = 15.0  # Default
-        if 'enhanced_market_data' in st.session_state:
-            try:
-                vix_current = st.session_state.enhanced_market_data.get('india_vix', {}).get('current', 15.0)
-            except:
-                pass
-
-        # VIX history (use recent values or create simple series)
-        vix_history = pd.Series([vix_current] * 50)  # Simple placeholder
-
-        # Get instrument
-        selected_instrument = st.session_state.get('selected_index', 'NIFTY')
-
-        # Calculate days to expiry (simple approximation)
-        from datetime import datetime
-        today = datetime.now()
-        # Find next Thursday (weekly expiry)
-        days_ahead = (3 - today.weekday()) % 7
-        if days_ahead == 0:
-            days_ahead = 7
-        days_to_expiry = days_ahead
-
-        # Render the AI analysis tab
-        render_master_ai_analysis_tab(
-            df=df,
-            option_chain=option_chain,
-            vix_current=vix_current,
-            vix_history=vix_history,
-            instrument=selected_instrument,
-            days_to_expiry=days_to_expiry
-        )
+        from nse_stock_screener_dhan import render_nse_stock_screener_tab
+        render_nse_stock_screener_tab()
     except Exception as e:
-        st.error(f"Error in Master AI Analysis: {e}")
-        import traceback
-        st.code(traceback.format_exc())
-
-# Show info below (removed the warning about loading data)
-    st.info("""
-            📊 **Master AI Analysis** combines ALL advanced modules:
-
-            1. 🌡️ **Volatility Regime Detection** - Detects market volatility state
-            2. 🎯 **OI Trap Detection** - Identifies retail trapping patterns
-            3. 📊 **CVD & Delta Imbalance** - Professional orderflow analysis
-            4. 🏦 **Institutional vs Retail** - Detects smart money activity
-            5. 🧲 **Liquidity Gravity** - Predicts price magnet levels
-            6. 💰 **Position Sizing** - Dynamic lot calculation with Kelly Criterion
-            7. 🛡️ **Risk Management** - Trailing stops, partial profits
-            8. 📈 **Expectancy Model** - Statistical edge validation
-            9. 🤖 **ML Market Regime** - AI-powered regime classification
-            10. 📋 **Market Summary** - Comprehensive actionable insights
-
-            **Result**: 75-85%+ win rate potential 🎯
-            """)
-
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 11: ADVANCED ANALYTICS
-# ═══════════════════════════════════════════════════════════════════════
-
-with tab11:
-    # Add button to open in new tab
-    st.markdown("""
-    <div style="background-color: #9c27b0; padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-        <h3 style="color: white; margin: 0 0 10px 0;">🚀 Open Advanced Analytics in New Browser Tab</h3>
-        <p style="color: white; margin: 0 0 10px 0;">Explore individual AI modules in a dedicated full-screen view</p>
-        <a href="/🤖_AI_Analysis" target="_blank" style="text-decoration: none;">
-            <button style="
-                background-color: #4CAF50;
-                color: white;
-                padding: 12px 30px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                font-size: 16px;
-                font-weight: bold;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            ">
-                🪟 Open in New Tab
-            </button>
-        </a>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    try:
-        # Auto-load market data if not already loaded
-        if 'data_df' not in st.session_state or st.session_state.data_df is None:
-            with st.spinner("📊 Loading NIFTY market data for analysis..."):
-                # Fetch NIFTY data
-                df = get_cached_chart_data('^NSEI', '1d', '1m')
-
-                if df is not None and not df.empty:
-                    # Add ATR indicator if not present
-                    if 'ATR' not in df.columns:
-                        from advanced_chart_analysis import AdvancedChartAnalysis
-                        chart_analyzer = AdvancedChartAnalysis()
-                        df = chart_analyzer.add_indicators(df)
-
-                    # Store in session state for reuse
-                    st.session_state.data_df = df
-                else:
-                    st.error("❌ Failed to load market data. Please check your connection and try again.")
-                    st.stop()
-
-        df = st.session_state.data_df
-
-        # Get option chain data
-        option_chain = {}
-        if 'overall_option_data' in st.session_state and st.session_state.overall_option_data:
-            option_chain = st.session_state.overall_option_data
-
-        # Get VIX data
-        vix_current = 15.0
-        if 'enhanced_market_data' in st.session_state:
-            try:
-                vix_current = st.session_state.enhanced_market_data.get('india_vix', {}).get('current', 15.0)
-            except:
-                pass
-
-        vix_history = pd.Series([vix_current] * 50)
-
-        # Render individual modules
-        render_advanced_analytics_tab(
-            df=df,
-            option_chain=option_chain,
-            vix_current=vix_current,
-            vix_history=vix_history
-        )
-    except Exception as e:
-        st.error(f"Error in Advanced Analytics: {e}")
-        import traceback
-        st.code(traceback.format_exc())
-
-# ═══════════════════════════════════════════════════════════════════════
-# TAB 12: SIGNAL HISTORY & PERFORMANCE
-# ═══════════════════════════════════════════════════════════════════════
-
-with tab12:
-    try:
-        from signal_tracker import display_signal_history_tab, update_active_signals
-
-        # Auto-update active signals with current market data
-        if 'bias_analysis_results' in st.session_state and isinstance(st.session_state.bias_analysis_results, dict):
-            df_price = st.session_state.bias_analysis_results.get('df')
-            if df_price is not None and len(df_price) > 0:
-                current_price = df_price['close'].iloc[-1]
-
-                # Gather market data for ML exit analysis
-                market_data = {}
-
-                # Add ML regime
-                if 'ml_regime_result' in st.session_state:
-                    market_data['ml_regime'] = st.session_state.ml_regime_result
-
-                # Add money flow signals
-                if 'money_flow_signals' in st.session_state:
-                    market_data['money_flow_signals'] = st.session_state.money_flow_signals
-
-                # Add deltaflow signals
-                if 'deltaflow_signals' in st.session_state:
-                    market_data['deltaflow_signals'] = st.session_state.deltaflow_signals
-
-                # Add ATM bias data
-                if 'atm_bias_data' in st.session_state:
-                    market_data['atm_bias_data'] = st.session_state.atm_bias_data
-
-                # Add volatility result
-                if 'volatility_result' in st.session_state:
-                    market_data['volatility_result'] = st.session_state.volatility_result
-
-                # Update active signals with ML analysis
-                update_result = update_active_signals(current_price, market_data=market_data)
-
-        # Display signal history and performance metrics
-        display_signal_history_tab()
-
-    except Exception as e:
-        st.error(f"Error loading Signal History: {e}")
+        st.error(f"❌ Error loading NSE Stock Screener: {e}")
         import traceback
         st.code(traceback.format_exc())
 
         st.info("""
-        **Signal Tracker Not Available**
+        **NSE Stock Screener Not Available**
 
         To use this feature:
-        1. Ensure signal_tracker.py is in the project root
-        2. Set up Supabase credentials in .streamlit/secrets.toml
-        3. Run the SQL schema in Supabase (see signal_tracker.py for SQL)
+        1. Ensure nse_stock_screener_dhan.py is in the project root
+        2. Required modules: advanced_chart_analysis.py, bias_analysis.py, src/ml_market_regime.py, NiftyOptionScreener.py
+        3. Internet connection required for fetching stock data and Dhan API access
         """)
 
 # ═══════════════════════════════════════════════════════════════════════

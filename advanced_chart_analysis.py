@@ -23,6 +23,7 @@ from indicators.liquidity_sentiment_profile import LiquiditySentimentProfile
 from indicators.advanced_price_action import AdvancedPriceAction
 from indicators.money_flow_profile import MoneyFlowProfile
 from indicators.deltaflow_volume_profile import DeltaFlowVolumeProfile
+from indicators.reversal_probability_zones import ReversalProbabilityZones
 from dhan_data_fetcher import DhanDataFetcher
 from config import get_dhan_credentials
 
@@ -157,11 +158,11 @@ class AdvancedChartAnalysis:
                              show_volume=True, show_liquidity_profile=False,
                              show_money_flow_profile=False, show_deltaflow_profile=False,
                              show_bos=False, show_choch=False, show_fibonacci=False,
-                             show_patterns=False,
+                             show_patterns=False, show_reversal_zones=True,
                              vob_params=None, htf_params=None, footprint_params=None,
                              rsi_params=None, om_params=None, liquidity_params=None,
                              money_flow_params=None, deltaflow_params=None,
-                             price_action_params=None):
+                             price_action_params=None, reversal_zones_params=None):
         """
         Create advanced chart with all indicators
 
@@ -177,6 +178,7 @@ class AdvancedChartAnalysis:
             show_liquidity_profile: Show Liquidity Sentiment Profile
             show_money_flow_profile: Show Money Flow Profile (volume/money flow weighted)
             show_deltaflow_profile: Show DeltaFlow Volume Profile (delta per price level)
+            show_reversal_zones: Show Reversal Probability Zones (LuxAlgo)
             vob_params: Parameters for Volume Order Blocks indicator
             htf_params: Parameters for HTF Support/Resistance indicator
             footprint_params: Parameters for HTF Volume Footprint indicator
@@ -185,6 +187,7 @@ class AdvancedChartAnalysis:
             liquidity_params: Parameters for Liquidity Sentiment Profile indicator
             money_flow_params: Parameters for Money Flow Profile indicator
             deltaflow_params: Parameters for DeltaFlow Volume Profile indicator
+            reversal_zones_params: Parameters for Reversal Probability Zones indicator
 
         Returns:
             plotly Figure object
@@ -236,7 +239,7 @@ class AdvancedChartAnalysis:
                 if footprint_params:
                     htf_footprint = HTFVolumeFootprint(**footprint_params)
                 else:
-                    htf_footprint = HTFVolumeFootprint(bins=10, timeframe='D', dynamic_poc=True)
+                    htf_footprint = HTFVolumeFootprint(bins=10, timeframe='1D', show_dynamic_poc=True)
 
             lsp_indicator = None
             if show_liquidity_profile:
@@ -269,6 +272,13 @@ class AdvancedChartAnalysis:
                 else:
                     price_action_indicator = AdvancedPriceAction()
 
+            reversal_zones_indicator = None
+            if show_reversal_zones:
+                if reversal_zones_params:
+                    reversal_zones_indicator = ReversalProbabilityZones(**reversal_zones_params)
+                else:
+                    reversal_zones_indicator = ReversalProbabilityZones(swing_length=20, max_reversals=1000)
+
             # Calculate all indicators
             vob_data = vob_indicator.calculate(df) if vob_indicator else None
             rsi_data = ultimate_rsi.get_signals(df) if ultimate_rsi else None
@@ -277,6 +287,7 @@ class AdvancedChartAnalysis:
             money_flow_data = money_flow_indicator.calculate(df) if money_flow_indicator else None
             deltaflow_data = deltaflow_indicator.calculate(df) if deltaflow_indicator else None
             price_action_data = price_action_indicator.analyze(df) if price_action_indicator else None
+            reversal_zones_data = reversal_zones_indicator.calculate(df) if reversal_zones_indicator else None
         except Exception as e:
             raise Exception(f"Error calculating indicators: {str(e)}")
 
@@ -609,34 +620,36 @@ class AdvancedChartAnalysis:
 
     def _add_volume_footprint(self, fig, df, footprint_data, row, col):
         """Add HTF Volume Footprint to chart with volume bins and dynamic POC"""
-        current = footprint_data['current_footprint']
+        # Extract the current footprint (VolumeFootprint dataclass)
+        current = footprint_data.get('current_footprint')
         if not current:
             return
 
-        dynamic_poc = footprint_data.get('dynamic_poc', False)
-        historical_pocs = footprint_data.get('historical_pocs', [])
+        show_dynamic_poc = footprint_data.get('show_dynamic_poc', False)
+        footprints = footprint_data.get('footprints', [])
 
-        # Get current period bounds
-        period_start = current['period_start']
+        # Get period bounds (convert bar indices to timestamps)
+        period_start = df.index[current.start_bar]
+        period_end = df.index[current.end_bar] if current.end_bar < len(df) else df.index[-1]
         current_time = df.index[-1]
 
         # Add Volume Profile Bins (horizontal rectangles showing volume distribution)
-        if 'bins' in current and len(current['bins']) > 0:
-            max_volume = max([bin_data['volume'] for bin_data in current['bins']])
+        if current.levels and len(current.levels) > 0:
+            max_volume = max(level.volume for level in current.levels)
 
             # Calculate the width for bins (proportional to timeframe)
             time_range = (current_time - period_start).total_seconds()
             # Make bins visible but not too wide - scale to ~10% of period
             bin_width_seconds = time_range * 0.1
 
-            for bin_data in current['bins']:
-                if bin_data['volume'] > 0:  # Only show bins with volume
+            for level in current.levels:
+                if level.volume > 0:  # Only show bins with volume
                     # Scale the bin width based on volume
-                    volume_ratio = bin_data['volume'] / max_volume if max_volume > 0 else 0
+                    volume_ratio = level.volume / max_volume if max_volume > 0 else 0
                     bin_x_end = period_start + pd.Timedelta(seconds=bin_width_seconds * volume_ratio)
 
                     # Use different color for POC bin
-                    if bin_data['is_poc']:
+                    if level.is_poc:
                         bin_color = 'rgba(41, 138, 218, 0.4)'  # Blue for POC
                         border_color = '#298ada'
                         border_width = 2
@@ -658,8 +671,8 @@ class AdvancedChartAnalysis:
                         type="rect",
                         x0=period_start,
                         x1=bin_x_end,
-                        y0=bin_data['lower'],
-                        y1=bin_data['upper'],
+                        y0=level.price_low,
+                        y1=level.price_high,
                         fillcolor=bin_color,
                         line=dict(color=border_color, width=border_width),
                         layer='below',
@@ -667,13 +680,13 @@ class AdvancedChartAnalysis:
                         yref=yref
                     )
 
-        # Handle POC display based on dynamic_poc setting
-        if dynamic_poc:
+        # Handle POC display based on show_dynamic_poc setting
+        if show_dynamic_poc:
             # Dynamic POC: Show POC line extending from period start to current time (real-time update)
             fig.add_trace(
                 go.Scatter(
                     x=[period_start, current_time],
-                    y=[current['poc'], current['poc']],
+                    y=[current.poc_price, current.poc_price],
                     mode='lines',
                     name='Dynamic POC',
                     line=dict(color='#298ada', width=3, dash='solid'),
@@ -683,11 +696,13 @@ class AdvancedChartAnalysis:
             )
         else:
             # Static POC: Show historical POC lines for all completed periods
-            for hist_poc in historical_pocs:
+            for footprint in footprints[:-1]:  # All except current
+                fp_start = df.index[footprint.start_bar]
+                fp_end = df.index[footprint.end_bar] if footprint.end_bar < len(df) else df.index[-1]
                 fig.add_trace(
                     go.Scatter(
-                        x=[hist_poc['period_start'], hist_poc['period_end']],
-                        y=[hist_poc['poc_price'], hist_poc['poc_price']],
+                        x=[fp_start, fp_end],
+                        y=[footprint.poc_price, footprint.poc_price],
                         mode='lines',
                         name='Historical POC',
                         line=dict(color='#298ada', width=2, dash='dash'),
@@ -700,7 +715,7 @@ class AdvancedChartAnalysis:
             fig.add_trace(
                 go.Scatter(
                     x=[period_start, current_time],
-                    y=[current['poc'], current['poc']],
+                    y=[current.poc_price, current.poc_price],
                     mode='lines',
                     name='POC (Point of Control)',
                     line=dict(color='#298ada', width=3, dash='solid'),
@@ -710,31 +725,35 @@ class AdvancedChartAnalysis:
             )
 
         # Add Value Area (same for both dynamic and static)
-        fig.add_trace(
-            go.Scatter(
-                x=[period_start, current_time],
-                y=[current['value_area_high'], current['value_area_high']],
-                mode='lines',
-                name='Value Area High',
-                line=dict(color='#64b5f6', width=1, dash='dot'),
-                showlegend=False
-            ),
-            row=row, col=col
-        )
+        value_area_high = footprint_data.get('value_area_high')
+        value_area_low = footprint_data.get('value_area_low')
 
-        fig.add_trace(
-            go.Scatter(
-                x=[period_start, current_time],
-                y=[current['value_area_low'], current['value_area_low']],
-                mode='lines',
-                name='Value Area Low',
-                line=dict(color='#64b5f6', width=1, dash='dot'),
-                fill='tonexty',
-                fillcolor='rgba(100, 181, 246, 0.1)',
-                showlegend=False
-            ),
-            row=row, col=col
-        )
+        if value_area_high is not None and value_area_low is not None:
+            fig.add_trace(
+                go.Scatter(
+                    x=[period_start, current_time],
+                    y=[value_area_high, value_area_high],
+                    mode='lines',
+                    name='Value Area High',
+                    line=dict(color='#64b5f6', width=1, dash='dot'),
+                    showlegend=False
+                ),
+                row=row, col=col
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=[period_start, current_time],
+                    y=[value_area_low, value_area_low],
+                    mode='lines',
+                    name='Value Area Low',
+                    line=dict(color='#64b5f6', width=1, dash='dot'),
+                    fill='tonexty',
+                    fillcolor='rgba(100, 181, 246, 0.1)',
+                    showlegend=False
+                ),
+                row=row, col=col
+            )
 
     def _add_ultimate_rsi(self, fig, df, rsi_data, row, col):
         """Add Ultimate RSI indicator to chart"""

@@ -2984,7 +2984,7 @@ def bs_theta(S,K,r,sigma,tau,option_type="call"):
 # -----------------------
 # 🔥 NEW: ORDERBOOK PRESSURE FUNCTIONS
 # -----------------------
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=60)
 def get_nifty_orderbook_depth():
     """
     Best-effort depth fetch from Dhan API
@@ -4683,7 +4683,7 @@ def rank_support_resistance_seller(pcr_df):
 # -----------------------
 # DHAN API
 # -----------------------
-@st.cache_data(ttl=30)  # Increased cache to 30 seconds to reduce API calls
+@st.cache_data(ttl=10)  # 10 seconds for real-time spot price updates
 def get_nifty_spot_price():
     """Fetch NIFTY spot price with retry logic and rate limiting"""
     max_retries = 3
@@ -4735,7 +4735,7 @@ def get_nifty_spot_price():
 
     return 0.0
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def get_expiry_list():
     try:
         url = f"{DHAN_BASE_URL}/v2/optionchain/expirylist"
@@ -4756,7 +4756,7 @@ def get_expiry_list():
         st.warning(f"Expiry list failed: {e}")
         return []
 
-@st.cache_data(ttl=30)  # Increased cache to 30 seconds to reduce API calls
+@st.cache_data(ttl=60)  # 60 seconds (1 minute) to reduce API calls
 def fetch_dhan_option_chain(expiry_date):
     """Fetch option chain with retry logic and rate limiting"""
     max_retries = 3
@@ -5112,7 +5112,7 @@ def render_nifty_option_screener():
         # Telegram settings
         st.markdown("---")
         st.markdown("### 🤖 TELEGRAM SETTINGS")
-        auto_send = st.checkbox("Auto-send signals to Telegram", value=False, key="nifty_screener_auto_send_telegram")
+        auto_send = st.checkbox("Auto-send signals to Telegram", value=True, key="nifty_screener_auto_send_telegram")
         show_signal_preview = st.checkbox("Show signal preview", value=True, key="nifty_screener_show_signal_preview")
         
         if st.button("Clear Caches"):
@@ -5459,6 +5459,68 @@ def render_nifty_option_screener():
 
     # Run OI/PCR analysis
     oi_pcr_metrics = analyze_oi_pcr_metrics(merged, spot, atm_strike)
+
+    # ============================================
+    # 💾 EXPORT DATA TO SESSION STATE FOR ML MARKET REGIME
+    # ============================================
+    # Store comprehensive option chain data for ML Market Regime integration
+    st.session_state['overall_option_data'] = {
+        'NIFTY': {
+            'success': True,
+            'spot': spot,
+            'atm_strike': atm_strike,
+            # PCR data
+            'pcr': oi_pcr_metrics.get('pcr_total', 1.0),
+            'pcr_interpretation': oi_pcr_metrics.get('pcr_interpretation', 'Neutral'),
+            # OI data
+            'total_ce_oi': oi_pcr_metrics.get('total_ce_oi', 0),
+            'total_pe_oi': oi_pcr_metrics.get('total_pe_oi', 0),
+            'call_oi_concentration': oi_pcr_metrics.get('atm_concentration_pct', 0) / 100.0,
+            'put_oi_concentration': oi_pcr_metrics.get('atm_concentration_pct', 0) / 100.0,
+            # Max Pain
+            'max_pain': seller_max_pain if seller_max_pain else atm_strike,
+            # Gamma data
+            'total_gamma': atm_bias.get('metrics', {}).get('net_gamma', 0) if atm_bias else 0,
+            'total_call_gamma': atm_bias.get('metrics', {}).get('gamma_exposure', 0) if atm_bias else 0,
+            'total_put_gamma': atm_bias.get('metrics', {}).get('gamma_exposure', 0) if atm_bias else 0,
+            # ATM Bias data
+            'atm_bias': {
+                'verdict': atm_bias.get('verdict', 'NEUTRAL') if atm_bias else 'NEUTRAL',
+                'score': atm_bias.get('total_score', 0) if atm_bias else 0,
+                'confidence': abs(atm_bias.get('total_score', 0)) * 100 if atm_bias else 0,
+                'bias_scores': atm_bias.get('bias_scores', {}) if atm_bias else {},
+                'metrics': atm_bias.get('metrics', {}) if atm_bias else {},
+                'interpretations': atm_bias.get('bias_interpretations', {}) if atm_bias else {}
+            },
+            # Support/Resistance data
+            'support': {
+                'strike': support_bias.get('strike', 0) if support_bias else 0,
+                'verdict': support_bias.get('verdict', 'NEUTRAL') if support_bias else 'NEUTRAL',
+                'score': support_bias.get('total_score', 0) if support_bias else 0,
+                'strength': support_bias.get('strength', 'Unknown') if support_bias else 'Unknown',
+                'distance_pct': ((spot - support_bias.get('strike', spot)) / spot * 100) if support_bias and support_bias.get('strike') else 0
+            },
+            'resistance': {
+                'strike': resistance_bias.get('strike', 0) if resistance_bias else 0,
+                'verdict': resistance_bias.get('verdict', 'NEUTRAL') if resistance_bias else 'NEUTRAL',
+                'score': resistance_bias.get('total_score', 0) if resistance_bias else 0,
+                'strength': resistance_bias.get('strength', 'Unknown') if resistance_bias else 'Unknown',
+                'distance_pct': ((resistance_bias.get('strike', spot) - spot) / spot * 100) if resistance_bias and resistance_bias.get('strike') else 0
+            },
+            # Seller's perspective signals
+            'seller_bias': seller_bias_result.get('seller_verdict', 'NEUTRAL') if seller_bias_result else 'NEUTRAL',
+            'seller_confidence': seller_bias_result.get('seller_confidence', 50) if seller_bias_result else 50,
+            # Entry signal
+            'entry_signal': {
+                'position': entry_signal.get('position', 'NEUTRAL'),
+                'confidence': entry_signal.get('confidence', 0),
+                'rationale': entry_signal.get('rationale', [])
+            },
+            # Moment metrics
+            'moment_score': moment_metrics.get('combined_moment_score', 0) if moment_metrics else 0,
+            'moment_verdict': moment_metrics.get('verdict', 'NEUTRAL') if moment_metrics else 'NEUTRAL'
+        }
+    }
 
     st.markdown("---")
 
