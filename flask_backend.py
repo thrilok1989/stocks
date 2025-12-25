@@ -12,6 +12,11 @@ import time
 from datetime import datetime
 import asyncio
 import threading
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Import all modules from existing app
 from config import *
