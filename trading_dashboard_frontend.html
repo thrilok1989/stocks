@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIFTY/SENSEX Trading Dashboard</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.18.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #0E1117;
+            --bg-secondary: #131722;
+            --bg-tertiary: #1e1e1e;
+            --bg-card: #2a2e39;
+            --text-primary: #ffffff;
+            --text-secondary: #787b86;
+            --border-color: #434651;
+            --accent-blue: #2196f3;
+            --accent-green: #4caf50;
+            --accent-red: #f44336;
+            --accent-yellow: #ff9800;
+            --accent-purple: #9c27b0;
+            --accent-pink: #e91e63;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+        }
+
+        .sidebar h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: var(--accent-blue);
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .sidebar-section h3 {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1976d2;
+        }
+
+        .btn-success {
+            background-color: var(--accent-green);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--accent-red);
+            color: white;
+        }
+
+        .btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: var(--bg-card);
+            margin-bottom: 15px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-connected {
+            background-color: var(--accent-green);
+        }
+
+        .status-disconnected {
+            background-color: var(--accent-red);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .market-status {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .market-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .market-badge.open {
+            background-color: var(--accent-green);
+            color: white;
+        }
+
+        .market-badge.closed {
+            background-color: var(--accent-red);
+            color: white;
+        }
+
+        /* Cards */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .value-positive { color: var(--accent-green); }
+        .value-negative { color: var(--accent-red); }
+        .value-neutral { color: var(--text-primary); }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Tabs */
+        .tabs-container {
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background-color: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-card);
+        }
+
+        .tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Info boxes */
+        .info-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .info-box.info {
+            background-color: rgba(33, 150, 243, 0.1);
+            border-left: 4px solid var(--accent-blue);
+        }
+
+        .info-box.success {
+            background-color: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid var(--accent-green);
+        }
+
+        .info-box.warning {
+            background-color: rgba(255, 152, 0, 0.1);
+            border-left: 4px solid var(--accent-yellow);
+        }
+
+        .info-box.error {
+            background-color: rgba(244, 67, 54, 0.1);
+            border-left: 4px solid var(--accent-red);
+        }
+
+        /* Signal setup card */
+        .signal-setup-card {
+            background-color: var(--bg-card);
+            border: 2px solid var(--accent-blue);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+
+        .signal-stars {
+            font-size: 24px;
+            color: var(--accent-yellow);
+        }
+
+        /* Position card */
+        .position-card {
+            background-color: var(--bg-card);
+            border-left: 4px solid var(--accent-green);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .position-card.loss {
+            border-left-color: var(--accent-red);
+        }
+
+        /* Data tables */
+        .data-table {
+            width: 100%;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .data-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background-color: var(--bg-card);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        .data-table tr:hover {
+            background-color: var(--bg-card);
+        }
+
+        /* Charts */
+        .chart-container {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            border-top: 1px solid var(--border-color);
+            margin-top: 40px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 50vh;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h1>🎯 NIFTY Trader</h1>
+
+            <div class="sidebar-section">
+                <h3>Backend Connection</h3>
+                <div class="status-indicator">
+                    <div class="status-dot status-disconnected" id="backendDot"></div>
+                    <span id="backendText">Disconnected</span>
+                </div>
+                <button class="btn btn-primary" id="connectBackendBtn">Connect to Backend</button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Auto Refresh</h3>
+                <input type="number" class="config-input" id="refreshInterval" placeholder="Interval (seconds)" value="30" min="5" max="300">
+                <button class="btn btn-success" id="startRefreshBtn">Start Auto-Refresh</button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Quick Actions</h3>
+                <button class="btn btn-success" id="fetchDataBtn">Fetch Market Data</button>
+                <button class="btn btn-primary" id="refreshSentimentBtn">Refresh Sentiment</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div>
+                    <h1 class="page-title">NIFTY/SENSEX Trading Dashboard</h1>
+                    <p style="color: var(--text-secondary);">Python Backend + HTML Frontend</p>
+                </div>
+                <div class="market-status">
+                    <div class="market-badge" id="marketStatusBadge">Loading...</div>
+                    <span id="currentTime">--:--:-- IST</span>
+                </div>
+            </header>
+
+            <!-- Market Overview Cards -->
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">NIFTY 50</span>
+                        <span>📈</span>
+                    </div>
+                    <div class="card-value value-neutral" id="niftyPrice">--</div>
+                    <div class="card-subtitle">
+                        <span id="niftyATM">ATM: --</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">SENSEX</span>
+                        <span>📊</span>
+                    </div>
+                    <div class="card-value value-neutral" id="sensexPrice">--</div>
+                    <div class="card-subtitle">
+                        <span id="sensexATM">ATM: --</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Market Sentiment</span>
+                        <span>🎯</span>
+                    </div>
+                    <div class="card-value value-neutral" id="overallSentiment">NEUTRAL</div>
+                    <div class="card-subtitle">
+                        <span id="sentimentScore">Score: --</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Data Age</span>
+                        <span>⏱️</span>
+                    </div>
+                    <div class="card-value value-neutral" id="dataAge">--</div>
+                    <div class="card-subtitle">seconds ago</div>
+                </div>
+            </div>
+
+            <!-- Main Tabs (All 9 tabs from app.py) -->
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab active" data-tab="sentiment">🌟 Overall Market Sentiment</button>
+                    <button class="tab" data-tab="setup">🎯 Trade Setup</button>
+                    <button class="tab" data-tab="signals">📊 Active Signals</button>
+                    <button class="tab" data-tab="positions">📈 Positions</button>
+                    <button class="tab" data-tab="bias">🎲 Bias Analysis Pro</button>
+                    <button class="tab" data-tab="charts">📉 Advanced Chart Analysis</button>
+                    <button class="tab" data-tab="options">⚡ NIFTY Option Screener v7.0</button>
+                    <button class="tab" data-tab="enhanced">🌐 Enhanced Market Data</button>
+                    <button class="tab" data-tab="screener">🔍 NSE Stock Screener</button>
+                </div>
+            </div>
+
+            <!-- TAB 1: Market Sentiment -->
+            <div class="tab-content active" id="sentiment">
+                <h2>🌟 Overall Market Sentiment</h2>
+                <div id="sentimentContent">
+                    <div class="info-box info">
+                        <span>ℹ️</span>
+                        <div>Connect to backend to load market sentiment analysis</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Trade Setup -->
+            <div class="tab-content" id="setup">
+                <h2>🎯 Trade Setup - VOB Based Manual Entry</h2>
+
+                <div class="signal-setup-card">
+                    <h3>Create New Signal Setup</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                        <div>
+                            <label>Select Index:</label>
+                            <select class="config-input" id="setupIndex">
+                                <option value="NIFTY">NIFTY 50</option>
+                                <option value="SENSEX">SENSEX</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Direction:</label>
+                            <select class="config-input" id="setupDirection">
+                                <option value="CALL">CALL (Bullish)</option>
+                                <option value="PUT">PUT (Bearish)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0;">
+                        <div>
+                            <label>VOB Support Level:</label>
+                            <input type="number" class="config-input" id="vobSupport" placeholder="e.g., 24000">
+                        </div>
+                        <div>
+                            <label>VOB Resistance Level:</label>
+                            <input type="number" class="config-input" id="vobResistance" placeholder="e.g., 24200">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="createSetupBtn" style="width: 100%; padding: 15px;">
+                        ✅ Create Signal Setup
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 3: Active Signals -->
+            <div class="tab-content" id="signals">
+                <h2>📊 Active Signal Setups</h2>
+                <div id="activeSignalsList">
+                    <div class="info-box info">
+                        <span>ℹ️</span>
+                        <div>No active signal setups. Create one in the Trade Setup tab.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Positions -->
+            <div class="tab-content" id="positions">
+                <h2>📈 Active Positions & Trade Monitoring</h2>
+                <div id="positionsContent">
+                    <div class="info-box info">
+                        <span>ℹ️</span>
+                        <div>No open positions. Execute a trade from Active Signals tab.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: Bias Analysis -->
+            <div class="tab-content" id="bias">
+                <h2>🎲 Bias Analysis Pro</h2>
+                <button class="btn btn-primary" id="runBiasBtn" style="max-width: 300px;">Run Bias Analysis</button>
+                <div id="biasContent" style="margin-top: 20px;">
+                    <div class="info-box info">
+                        <span>ℹ️</span>
+                        <div>Click "Run Bias Analysis" to analyze market bias</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: Chart Analysis -->
+            <div class="tab-content" id="charts">
+                <h2>📉 Advanced Chart Analysis</h2>
+                <div class="chart-container">
+                    <h3>Price Chart</h3>
+                    <div class="chart-wrapper">
+                        <div id="mainChart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 7: Options Screener -->
+            <div class="tab-content" id="options">
+                <h2>⚡ NIFTY Option Screener v7.0</h2>
+                <div class="info-box info">
+                    <span>⚡</span>
+                    <div>Options chain data - Connect to backend to load</div>
+                </div>
+            </div>
+
+            <!-- TAB 8: Enhanced Market Data -->
+            <div class="tab-content" id="enhanced">
+                <h2>🌐 Enhanced Market Data</h2>
+                <div class="info-box info">
+                    <span>🌐</span>
+                    <div>Global markets, sector indices, and intermarket data - Connect to backend to load</div>
+                </div>
+            </div>
+
+            <!-- TAB 9: Stock Screener -->
+            <div class="tab-content" id="screener">
+                <h2>🔍 NSE Stock Screener</h2>
+                <div class="info-box info">
+                    <span>🔍</span>
+                    <div>Stock screening with filters - Connect to backend to load</div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="footer">
+                <p>Last Updated: <span id="footerTime">--</span> IST | Backend: Python Flask | Frontend: HTML/JS</p>
+                <p>🎯 NIFTY/SENSEX Trading Dashboard - All features from app.py</p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        // ========================================================================
+        // CONFIGURATION
+        // ========================================================================
+        const API_BASE_URL = 'http://localhost:5000/api';
+        const SOCKET_URL = 'http://localhost:5000';
+
+        // ========================================================================
+        // STATE MANAGEMENT
+        // ========================================================================
+        const AppState = {
+            connected: false,
+            socket: null,
+            autoRefreshTimer: null,
+            marketData: {
+                nifty: null,
+                sensex: null
+            },
+            sentiment: null,
+            signals: [],
+            positions: []
+        };
+
+        // ========================================================================
+        // INITIALIZATION
+        // ========================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing Trading Dashboard Frontend...');
+
+            setupEventListeners();
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // Auto-connect to backend
+            setTimeout(connectToBackend, 1000);
+        });
+
+        // ========================================================================
+        // EVENT LISTENERS
+        // ========================================================================
+        function setupEventListeners() {
+            // Backend connection
+            document.getElementById('connectBackendBtn').addEventListener('click', connectToBackend);
+
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
+
+            // Auto-refresh
+            document.getElementById('startRefreshBtn').addEventListener('click', startAutoRefresh);
+
+            // Quick actions
+            document.getElementById('fetchDataBtn').addEventListener('click', fetchMarketData);
+            document.getElementById('refreshSentimentBtn').addEventListener('click', fetchSentiment);
+
+            // Trade setup
+            document.getElementById('createSetupBtn').addEventListener('click', createSignalSetup);
+
+            // Bias analysis
+            document.getElementById('runBiasBtn').addEventListener('click', runBiasAnalysis);
+        }
+
+        // ========================================================================
+        // BACKEND CONNECTION
+        // ========================================================================
+        async function connectToBackend() {
+            try {
+                updateBackendStatus('connecting');
+                console.log('Connecting to backend...');
+
+                // Test connection
+                const response = await axios.get(API_BASE_URL + '/market-status');
+
+                if (response.data.success) {
+                    AppState.connected = true;
+                    updateBackendStatus('connected');
+                    console.log('✅ Connected to backend');
+
+                    // Initialize Socket.IO
+                    initializeSocket();
+
+                    // Load initial data
+                    await fetchMarketData();
+                    await fetchSentiment();
+                    await fetchMarketStatus();
+                    await loadActiveSignals();
+                    await loadPositions();
+
+                    // Start auto-refresh
+                    startAutoRefresh();
+                } else {
+                    throw new Error('Backend returned error');
+                }
+            } catch (error) {
+                console.error('❌ Backend connection failed:', error);
+                updateBackendStatus('disconnected');
+                alert('Failed to connect to backend. Make sure Flask server is running on http://localhost:5000');
+            }
+        }
+
+        function initializeSocket() {
+            AppState.socket = io(SOCKET_URL);
+
+            AppState.socket.on('connect', () => {
+                console.log('✅ Socket.IO connected');
+                AppState.socket.emit('subscribe_market_data', {});
+            });
+
+            AppState.socket.on('market_update', (data) => {
+                console.log('📊 Market update received');
+                updateMarketDataUI(data);
+            });
+
+            AppState.socket.on('disconnect', () => {
+                console.log('❌ Socket.IO disconnected');
+            });
+        }
+
+        function updateBackendStatus(status) {
+            const dot = document.getElementById('backendDot');
+            const text = document.getElementById('backendText');
+
+            dot.classList.remove('status-connected', 'status-disconnected');
+
+            switch (status) {
+                case 'connected':
+                    dot.classList.add('status-connected');
+                    text.textContent = 'Connected';
+                    document.getElementById('connectBackendBtn').textContent = 'Connected ✓';
+                    document.getElementById('connectBackendBtn').disabled = true;
+                    break;
+                case 'connecting':
+                    text.textContent = 'Connecting...';
+                    break;
+                case 'disconnected':
+                    dot.classList.add('status-disconnected');
+                    text.textContent = 'Disconnected';
+                    document.getElementById('connectBackendBtn').textContent = 'Connect to Backend';
+                    document.getElementById('connectBackendBtn').disabled = false;
+                    break;
+            }
+        }
+
+        // ========================================================================
+        // DATA FETCHING
+        // ========================================================================
+        async function fetchMarketData() {
+            try {
+                const response = await axios.get(API_BASE_URL + '/market-data');
+
+                if (response.data.success) {
+                    AppState.marketData = response.data.data;
+                    updateMarketDataUI(response.data.data);
+                }
+            } catch (error) {
+                console.error('Error fetching market data:', error);
+            }
+        }
+
+        async function fetchSentiment() {
+            try {
+                const response = await axios.get(API_BASE_URL + '/sentiment');
+
+                if (response.data.success) {
+                    AppState.sentiment = response.data.sentiment;
+                    updateSentimentUI(response.data.sentiment);
+                }
+            } catch (error) {
+                console.error('Error fetching sentiment:', error);
+            }
+        }
+
+        async function fetchMarketStatus() {
+            try {
+                const response = await axios.get(API_BASE_URL + '/market-status');
+
+                if (response.data.success) {
+                    updateMarketStatusUI(response.data.status);
+                }
+            } catch (error) {
+                console.error('Error fetching market status:', error);
+            }
+        }
+
+        async function loadActiveSignals() {
+            try {
+                const response = await axios.get(API_BASE_URL + '/signals/active');
+
+                if (response.data.success) {
+                    AppState.signals = Object.values(response.data.signals);
+                    displayActiveSignals();
+                }
+            } catch (error) {
+                console.error('Error loading signals:', error);
+            }
+        }
+
+        async function loadPositions() {
+            try {
+                const response = await axios.get(API_BASE_URL + '/positions');
+
+                if (response.data.success) {
+                    AppState.positions = response.data.positions;
+                    displayPositions();
+                }
+            } catch (error) {
+                console.error('Error loading positions:', error);
+            }
+        }
+
+        async function runBiasAnalysis() {
+            try {
+                document.getElementById('biasContent').innerHTML = '<div class="spinner"></div>';
+
+                const response = await axios.get(API_BASE_URL + '/bias-analysis');
+
+                if (response.data.success) {
+                    displayBiasAnalysis(response.data.bias_analysis);
+                }
+            } catch (error) {
+                console.error('Error running bias analysis:', error);
+                document.getElementById('biasContent').innerHTML = '<div class="info-box error"><span>❌</span><div>Failed to run bias analysis</div></div>';
+            }
+        }
+
+        // ========================================================================
+        // SIGNAL MANAGEMENT
+        // ========================================================================
+        async function createSignalSetup() {
+            const index = document.getElementById('setupIndex').value;
+            const direction = document.getElementById('setupDirection').value;
+            const support = parseFloat(document.getElementById('vobSupport').value);
+            const resistance = parseFloat(document.getElementById('vobResistance').value);
+
+            if (!support || !resistance) {
+                alert('Please enter both Support and Resistance levels');
+                return;
+            }
+
+            try {
+                const response = await axios.post(API_BASE_URL + '/signals/create', {
+                    index,
+                    direction,
+                    vob_support: support,
+                    vob_resistance: resistance
+                });
+
+                if (response.data.success) {
+                    alert('✅ Signal setup created successfully!');
+                    await loadActiveSignals();
+                    switchTab('signals');
+                }
+            } catch (error) {
+                console.error('Error creating setup:', error);
+                alert('Failed to create signal setup');
+            }
+        }
+
+        async function addSignal(signalId) {
+            try {
+                const response = await axios.post(API_BASE_URL + `/signals/${signalId}/add`);
+
+                if (response.data.success) {
+                    await loadActiveSignals();
+                }
+            } catch (error) {
+                console.error('Error adding signal:', error);
+            }
+        }
+
+        async function removeSignal(signalId) {
+            try {
+                const response = await axios.post(API_BASE_URL + `/signals/${signalId}/remove`);
+
+                if (response.data.success) {
+                    await loadActiveSignals();
+                }
+            } catch (error) {
+                console.error('Error removing signal:', error);
+            }
+        }
+
+        async function executeSetup(signalId) {
+            if (!confirm('Execute this trade?')) return;
+
+            try {
+                const response = await axios.post(API_BASE_URL + '/trade/execute', {
+                    signal_id: signalId
+                });
+
+                if (response.data.success) {
+                    alert('✅ Trade executed successfully!');
+                    await loadActiveSignals();
+                    await loadPositions();
+                    switchTab('positions');
+                }
+            } catch (error) {
+                console.error('Error executing trade:', error);
+                alert('Failed to execute trade: ' + (error.response?.data?.error || error.message));
+            }
+        }
+
+        async function deleteSignal(signalId) {
+            if (!confirm('Delete this signal setup?')) return;
+
+            try {
+                const response = await axios.delete(API_BASE_URL + `/signals/${signalId}/delete`);
+
+                if (response.data.success) {
+                    await loadActiveSignals();
+                }
+            } catch (error) {
+                console.error('Error deleting signal:', error);
+            }
+        }
+
+        async function closePosition(orderId) {
+            if (!confirm('Close this position?')) return;
+
+            try {
+                const response = await axios.post(API_BASE_URL + `/positions/${orderId}/close`);
+
+                if (response.data.success) {
+                    alert(`Position closed! P&L: ${response.data.position.pnl >= 0 ? '+' : ''}₹${response.data.position.pnl.toFixed(2)}`);
+                    await loadPositions();
+                }
+            } catch (error) {
+                console.error('Error closing position:', error);
+                alert('Failed to close position');
+            }
+        }
+
+        // ========================================================================
+        // UI UPDATES
+        // ========================================================================
+        function updateMarketDataUI(data) {
+            if (data.nifty) {
+                document.getElementById('niftyPrice').textContent = `₹${data.nifty.spot_price?.toFixed(2) || '--'}`;
+                document.getElementById('niftyATM').textContent = `ATM: ${data.nifty.atm_strike || '--'}`;
+            }
+
+            if (data.sensex) {
+                document.getElementById('sensexPrice').textContent = `₹${data.sensex.spot_price?.toFixed(2) || '--'}`;
+                document.getElementById('sensexATM').textContent = `ATM: ${data.sensex.atm_strike || '--'}`;
+            }
+
+            if (data.cache_age !== null) {
+                document.getElementById('dataAge').textContent = data.cache_age;
+            }
+        }
+
+        function updateSentimentUI(sentiment) {
+            if (!sentiment) return;
+
+            const sentimentText = sentiment.overall_sentiment || 'NEUTRAL';
+            const score = sentiment.overall_score || 0;
+
+            const sentimentEl = document.getElementById('overallSentiment');
+            sentimentEl.textContent = sentimentText;
+
+            if (score > 30) {
+                sentimentEl.className = 'card-value value-positive';
+            } else if (score < -30) {
+                sentimentEl.className = 'card-value value-negative';
+            } else {
+                sentimentEl.className = 'card-value value-neutral';
+            }
+
+            document.getElementById('sentimentScore').textContent = `Score: ${score.toFixed(1)}`;
+
+            // Update sentiment tab content
+            document.getElementById('sentimentContent').innerHTML = `
+                <div class="card">
+                    <h3>Overall Sentiment: ${sentimentText}</h3>
+                    <div class="card-value ${score > 30 ? 'value-positive' : score < -30 ? 'value-negative' : 'value-neutral'}">${score.toFixed(1)}</div>
+                    <div class="card-subtitle">Calculated from multiple indicators</div>
+                </div>
+            `;
+        }
+
+        function updateMarketStatusUI(status) {
+            const badge = document.getElementById('marketStatusBadge');
+
+            if (status.open) {
+                badge.textContent = 'Market Open';
+                badge.className = 'market-badge open';
+            } else {
+                badge.textContent = 'Market Closed';
+                badge.className = 'market-badge closed';
+            }
+        }
+
+        function displayActiveSignals() {
+            const container = document.getElementById('activeSignalsList');
+
+            if (AppState.signals.length === 0) {
+                container.innerHTML = `
+                    <div class="info-box info">
+                        <span>ℹ️</span>
+                        <div>No active signal setups. Create one in the Trade Setup tab.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+
+            AppState.signals.forEach(setup => {
+                const stars = '⭐'.repeat(setup.signal_count) + '☆'.repeat(3 - setup.signal_count);
+
+                html += `
+                    <div class="signal-setup-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>${setup.index} ${setup.direction}</h3>
+                            <div class="signal-stars">${stars} (${setup.signal_count}/3)</div>
+                        </div>
+
+                        <div style="margin: 15px 0;">
+                            <p><strong>Support:</strong> ₹${setup.vob_support}</p>
+                            <p><strong>Resistance:</strong> ₹${setup.vob_resistance}</p>
+                            <p><strong>Status:</strong> ${setup.status}</p>
+                        </div>
+
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="addSignal('${setup.id}')"${setup.signal_count >= 3 ? ' disabled' : ''}>➕ Add Signal</button>
+                            <button class="btn btn-danger" onclick="removeSignal('${setup.id}')"${setup.signal_count === 0 ? ' disabled' : ''}>➖ Remove Signal</button>
+                            <button class="btn btn-success" onclick="executeSetup('${setup.id}')"${setup.signal_count < 3 ? ' disabled' : ''}>🚀 Execute Trade</button>
+                            <button class="btn btn-danger" onclick="deleteSignal('${setup.id}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function displayPositions() {
+            const container = document.getElementById('positionsContent');
+
+            const activePositions = AppState.positions.filter(p => p.status === 'active');
+
+            if (activePositions.length === 0) {
+                container.innerHTML = `
+                    <div class="info-box info">
+                        <span>ℹ️</span>
+                        <div>No open positions. Execute a trade from Active Signals tab.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '<h3>Open Positions</h3>';
+
+            activePositions.forEach(pos => {
+                const pnlClass = pos.current_pnl >= 0 ? '' : 'loss';
+                const pnlText = pos.current_pnl >= 0 ? `+₹${pos.current_pnl.toFixed(2)}` : `-₹${Math.abs(pos.current_pnl).toFixed(2)}`;
+
+                html += `
+                    <div class="position-card ${pnlClass}">
+                        <div style="display: flex; justify-content: space-between;">
+                            <h4>${pos.index} ${pos.direction}</h4>
+                            <span style="font-size: 18px; font-weight: bold; color: ${pos.current_pnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'};">${pnlText}</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <p>Entry: ₹${pos.entry} | SL: ₹${pos.sl} | Target: ₹${pos.target}</p>
+                            <p>Strike: ${pos.strike} ${pos.option_type} | Qty: ${pos.quantity}</p>
+                        </div>
+                        <button class="btn btn-danger" onclick="closePosition('${pos.order_id}')">Close Position</button>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function displayBiasAnalysis(data) {
+            const container = document.getElementById('biasContent');
+
+            let html = `
+                <div class="card">
+                    <h3>Bias Analysis Results</h3>
+                    <div class="card-value ${data.overall_score > 0 ? 'value-positive' : data.overall_score < 0 ? 'value-negative' : 'value-neutral'}">
+                        ${data.overall_score?.toFixed(1) || 'N/A'}
+                    </div>
+                    <div class="card-subtitle">Overall Bias Score</div>
+                </div>
+            `;
+
+            container.innerHTML = html;
+        }
+
+        // ========================================================================
+        // TAB MANAGEMENT
+        // ========================================================================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.tab === tabName) {
+                    tab.classList.add('active');
+                }
+            });
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // ========================================================================
+        // AUTO REFRESH
+        // ========================================================================
+        function startAutoRefresh() {
+            const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+
+            if (AppState.autoRefreshTimer) {
+                clearInterval(AppState.autoRefreshTimer);
+            }
+
+            AppState.autoRefreshTimer = setInterval(async () => {
+                if (AppState.connected) {
+                    await fetchMarketData();
+                    await fetchSentiment();
+                }
+            }, interval);
+
+            console.log(`✅ Auto-refresh enabled (${interval / 1000}s)`);
+            document.getElementById('startRefreshBtn').textContent = 'Refreshing... ✓';
+        }
+
+        // ========================================================================
+        // UTILITIES
+        // ========================================================================
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+            document.getElementById('currentTime').textContent = `${timeStr} IST`;
+            document.getElementById('footerTime').textContent = timeStr;
+        }
+
+        // ========================================================================
+        // CLEANUP
+        // ========================================================================
+        window.addEventListener('beforeunload', function() {
+            if (AppState.socket) {
+                AppState.socket.disconnect();
+            }
+            if (AppState.autoRefreshTimer) {
+                clearInterval(AppState.autoRefreshTimer);
+            }
+        });
+    </script>
+</body>
+</html>
