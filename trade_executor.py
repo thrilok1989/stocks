@@ -2,7 +2,6 @@ from dhan_api import DhanAPI
 from telegram_alerts import TelegramBot
 from strike_calculator import calculate_strike, calculate_levels
 from config import LOT_SIZES, DEMO_MODE
-import streamlit as st
 
 class TradeExecutor:
     def __init__(self):

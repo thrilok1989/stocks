@@ -1,5 +1,4 @@
 import requests
-import streamlit as st
 from config import get_dhan_credentials, LOT_SIZES
 from datetime import datetime
 
@@ -172,5 +171,5 @@ def check_dhan_connection():
         from dhan_data_fetcher import test_dhan_connection
         return test_dhan_connection()
     except Exception as e:
-        st.error(f"❌ DhanHQ Connection Failed: {e}")
+        print(f"❌ DhanHQ Connection Failed: {e}")
         return False
