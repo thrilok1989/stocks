@@ -1,0 +1,1738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NIFTY/SENSEX Trader 🎯</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.18.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #0E1117;
+            --bg-secondary: #131722;
+            --bg-tertiary: #1e1e1e;
+            --bg-card: #2a2e39;
+            --text-primary: #ffffff;
+            --text-secondary: #787b86;
+            --border-color: #434651;
+            --accent-blue: #2196f3;
+            --accent-green: #4caf50;
+            --accent-red: #f44336;
+            --accent-yellow: #ff9800;
+            --accent-purple: #9c27b0;
+            --accent-pink: #e91e63;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid var(--border-color);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .sidebar-section h3 {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .config-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .config-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1976d2;
+        }
+
+        .btn-success {
+            background-color: var(--accent-green);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #388e3c;
+        }
+
+        .btn-danger {
+            background-color: var(--accent-red);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #d32f2f;
+        }
+
+        .btn:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: var(--bg-card);
+            margin-bottom: 15px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-connected {
+            background-color: var(--accent-green);
+        }
+
+        .status-disconnected {
+            background-color: var(--accent-red);
+        }
+
+        .status-connecting {
+            background-color: var(--accent-yellow);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .page-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .market-status {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .market-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .market-badge.open {
+            background-color: var(--accent-green);
+            color: white;
+        }
+
+        .market-badge.closed {
+            background-color: var(--accent-red);
+            color: white;
+        }
+
+        /* Tabs Styles */
+        .tabs-container {
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background-color: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            white-space: nowrap;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-card);
+        }
+
+        .tab.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card Styles */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .value-positive {
+            color: var(--accent-green);
+        }
+
+        .value-negative {
+            color: var(--accent-red);
+        }
+
+        .value-neutral {
+            color: var(--text-secondary);
+        }
+
+        .card-subtitle {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .chart-container {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .chart-wrapper {
+            width: 100%;
+            height: 400px;
+            position: relative;
+        }
+
+        /* Data Table Styles */
+        .data-table {
+            width: 100%;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .data-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .data-table th {
+            background-color: var(--bg-card);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table td {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+
+        .data-table tr:hover {
+            background-color: var(--bg-card);
+        }
+
+        /* Info Box Styles */
+        .info-box {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .info-box.info {
+            background-color: rgba(33, 150, 243, 0.1);
+            border-left: 4px solid var(--accent-blue);
+        }
+
+        .info-box.success {
+            background-color: rgba(76, 175, 80, 0.1);
+            border-left: 4px solid var(--accent-green);
+        }
+
+        .info-box.warning {
+            background-color: rgba(255, 152, 0, 0.1);
+            border-left: 4px solid var(--accent-yellow);
+        }
+
+        .info-box.error {
+            background-color: rgba(244, 67, 54, 0.1);
+            border-left: 4px solid var(--accent-red);
+        }
+
+        /* Log Container */
+        .log-container {
+            background-color: var(--bg-tertiary);
+            border-radius: 4px;
+            padding: 15px;
+            height: 250px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.5;
+        }
+
+        .log-timestamp {
+            color: var(--text-secondary);
+        }
+
+        .log-info {
+            color: var(--accent-blue);
+        }
+
+        .log-success {
+            color: var(--accent-green);
+        }
+
+        .log-warning {
+            color: var(--accent-yellow);
+        }
+
+        .log-error {
+            color: var(--accent-red);
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            background-color: var(--bg-card);
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 50vh;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .page-title {
+                font-size: 24px;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .tabs {
+                flex-wrap: nowrap;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: var(--bg-card);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent-blue);
+            transition: width 0.3s ease;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-card);
+            transition: 0.4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--accent-blue);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Scrollbar Styles */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-card);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            border-top: 1px solid var(--border-color);
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h1>🎯 NIFTY Trader</h1>
+
+            <div class="sidebar-section">
+                <h3>Connection Status</h3>
+                <div class="status-indicator">
+                    <div class="status-dot status-disconnected" id="connectionDot"></div>
+                    <span id="connectionText">Disconnected</span>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>WebSocket Configuration</h3>
+                <input type="password" class="config-input" id="accessToken" placeholder="Access Token">
+                <input type="text" class="config-input" id="clientId" placeholder="Client ID">
+                <button class="btn btn-primary" id="connectBtn">Connect</button>
+                <button class="btn btn-danger" id="disconnectBtn" disabled>Disconnect</button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Auto Refresh</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span>Enable Auto-refresh</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoRefreshToggle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <input type="number" class="config-input" id="refreshInterval" placeholder="Interval (seconds)" value="30" min="5" max="300">
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Market Selection</h3>
+                <select class="config-input" id="marketSelect">
+                    <option value="NIFTY">NIFTY 50</option>
+                    <option value="SENSEX">SENSEX</option>
+                    <option value="BANKNIFTY">BANK NIFTY</option>
+                </select>
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Quick Actions</h3>
+                <button class="btn btn-success" id="fetchDataBtn">Fetch Latest Data</button>
+                <button class="btn btn-primary" id="clearLogsBtn">Clear Logs</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1 class="page-title">NIFTY/SENSEX Trading Dashboard</h1>
+                <div class="market-status">
+                    <div class="market-badge" id="marketStatusBadge">Market Closed</div>
+                    <span id="currentTime">--:--:-- IST</span>
+                </div>
+            </header>
+
+            <!-- Market Overview Cards -->
+            <div class="card-grid">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">NIFTY 50</span>
+                        <span>📈</span>
+                    </div>
+                    <div class="card-value value-neutral" id="niftyPrice">--</div>
+                    <div class="card-subtitle">
+                        <span id="niftyChange">-- (--)</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">SENSEX</span>
+                        <span>📊</span>
+                    </div>
+                    <div class="card-value value-neutral" id="sensexPrice">--</div>
+                    <div class="card-subtitle">
+                        <span id="sensexChange">-- (--)</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">India VIX</span>
+                        <span>⚡</span>
+                    </div>
+                    <div class="card-value value-neutral" id="vixPrice">--</div>
+                    <div class="card-subtitle">Volatility Index</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Market Sentiment</span>
+                        <span>🎯</span>
+                    </div>
+                    <div class="card-value value-neutral" id="sentiment">NEUTRAL</div>
+                    <div class="card-subtitle">
+                        <span id="sentimentScore">Score: --</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs-container">
+                <div class="tabs">
+                    <button class="tab active" data-tab="overview">📊 Overview</button>
+                    <button class="tab" data-tab="charts">📈 Charts</button>
+                    <button class="tab" data-tab="options">⚡ Options Analysis</button>
+                    <button class="tab" data-tab="technical">📉 Technical Indicators</button>
+                    <button class="tab" data-tab="sentiment">🎯 Market Sentiment</button>
+                    <button class="tab" data-tab="screener">🔍 Stock Screener</button>
+                    <button class="tab" data-tab="ai">🤖 AI Analysis</button>
+                    <button class="tab" data-tab="logs">📝 Logs</button>
+                </div>
+            </div>
+
+            <!-- Tab Content: Overview -->
+            <div class="tab-content active" id="overview">
+                <h2>Market Overview</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Last Update</div>
+                        <div class="stat-value" id="lastUpdate">--</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Volume</div>
+                        <div class="stat-value" id="volume">--</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">High</div>
+                        <div class="stat-value value-positive" id="high">--</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Low</div>
+                        <div class="stat-value value-negative" id="low">--</div>
+                    </div>
+                </div>
+
+                <div class="info-box info">
+                    <span>ℹ️</span>
+                    <div>
+                        <strong>Welcome to NIFTY/SENSEX Trading Dashboard</strong><br>
+                        Connect your DhanHQ account to start receiving real-time market data. Configure your settings in the sidebar and select your preferred market.
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Price Movement</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="overviewChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Charts -->
+            <div class="tab-content" id="charts">
+                <h2>Technical Charts</h2>
+
+                <div class="chart-container">
+                    <div class="card-header">
+                        <h3>Candlestick Chart with SuperTrend</h3>
+                        <div>
+                            <select class="config-input" style="width: auto; display: inline-block; margin-right: 10px;" id="timeframe">
+                                <option value="1">1 min</option>
+                                <option value="5" selected>5 min</option>
+                                <option value="15">15 min</option>
+                                <option value="30">30 min</option>
+                                <option value="60">1 hour</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper" style="height: 500px;">
+                        <div id="candlestickChart"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Options -->
+            <div class="tab-content" id="options">
+                <h2>Options Chain Analysis</h2>
+
+                <div class="info-box info">
+                    <span>⚡</span>
+                    <div>
+                        <strong>Options Chain Data</strong><br>
+                        View ATM strikes, implied volatility, open interest, and option Greeks for NIFTY and SENSEX options.
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">ATM Strike</div>
+                        <div class="stat-value" id="atmStrike">--</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">PCR Ratio</div>
+                        <div class="stat-value" id="pcrRatio">--</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Max Pain</div>
+                        <div class="stat-value" id="maxPain">--</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">IV Rank</div>
+                        <div class="stat-value" id="ivRank">--</div>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Strike</th>
+                                <th>Call OI</th>
+                                <th>Call LTP</th>
+                                <th>Put LTP</th>
+                                <th>Put OI</th>
+                                <th>PCR</th>
+                            </tr>
+                        </thead>
+                        <tbody id="optionsTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 40px;">
+                                    Connect to fetch options data
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab Content: Technical Indicators -->
+            <div class="tab-content" id="technical">
+                <h2>Technical Indicators</h2>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">RSI (14)</span>
+                            <span>📊</span>
+                        </div>
+                        <div class="card-value value-neutral" id="rsi">--</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="rsiProgress" style="width: 0%"></div>
+                        </div>
+                        <div class="card-subtitle" id="rsiSignal">--</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">MACD</span>
+                            <span>📈</span>
+                        </div>
+                        <div class="card-value value-neutral" id="macd">--</div>
+                        <div class="card-subtitle" id="macdSignal">--</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">SuperTrend</span>
+                            <span>⚡</span>
+                        </div>
+                        <div class="card-value value-neutral" id="supertrend">--</div>
+                        <div class="card-subtitle" id="supertrendSignal">--</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">ATR (14)</span>
+                            <span>📉</span>
+                        </div>
+                        <div class="card-value value-neutral" id="atr">--</div>
+                        <div class="card-subtitle">Average True Range</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Indicator Chart</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="indicatorChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Market Sentiment -->
+            <div class="tab-content" id="sentiment">
+                <h2>Market Sentiment Analysis</h2>
+
+                <div class="info-box info">
+                    <span>🎯</span>
+                    <div>
+                        <strong>AI-Powered Sentiment Analysis</strong><br>
+                        Aggregated sentiment from multiple sources including technical indicators, options data, and market breadth.
+                    </div>
+                </div>
+
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Overall Sentiment</span>
+                        </div>
+                        <div class="card-value value-neutral" id="overallSentiment">NEUTRAL</div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="sentimentProgress" style="width: 50%"></div>
+                        </div>
+                        <div class="card-subtitle">Confidence: <span id="sentimentConfidence">--</span></div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Technical Score</span>
+                        </div>
+                        <div class="card-value value-neutral" id="technicalScore">--</div>
+                        <div class="card-subtitle" id="technicalBias">--</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Options Bias</span>
+                        </div>
+                        <div class="card-value value-neutral" id="optionsBias">--</div>
+                        <div class="card-subtitle" id="optionsBiasText">--</div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">Volume Profile</span>
+                        </div>
+                        <div class="card-value value-neutral" id="volumeProfile">--</div>
+                        <div class="card-subtitle" id="volumeProfileText">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content: Stock Screener -->
+            <div class="tab-content" id="screener">
+                <h2>NSE Stock Screener</h2>
+
+                <div class="info-box info">
+                    <span>🔍</span>
+                    <div>
+                        <strong>Real-time Stock Screener</strong><br>
+                        Filter stocks based on technical criteria, volume, and price action.
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <input type="text" class="config-input" id="stockSearch" placeholder="Search stocks..." style="max-width: 400px;">
+                </div>
+
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Symbol</th>
+                                <th>LTP</th>
+                                <th>Change %</th>
+                                <th>Volume</th>
+                                <th>Signal</th>
+                            </tr>
+                        </thead>
+                        <tbody id="screenerTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 40px;">
+                                    Connect to fetch stock data
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab Content: AI Analysis -->
+            <div class="tab-content" id="ai">
+                <h2>AI Market Analysis</h2>
+
+                <div class="info-box warning">
+                    <span>🤖</span>
+                    <div>
+                        <strong>AI Analysis</strong><br>
+                        Advanced market analysis using machine learning models and market regime detection.
+                        Last analysis: <span id="lastAiAnalysis">Never</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="runAiAnalysisBtn" style="max-width: 300px;">Run AI Analysis</button>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        <span class="card-title">Market Regime</span>
+                    </div>
+                    <div class="card-value value-neutral" id="marketRegime">--</div>
+                    <div class="card-subtitle" id="marketRegimeDesc">--</div>
+                </div>
+
+                <div id="aiAnalysisResult" style="margin-top: 20px;"></div>
+            </div>
+
+            <!-- Tab Content: Logs -->
+            <div class="tab-content" id="logs">
+                <h2>System Logs</h2>
+
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry">
+                        <span class="log-timestamp">[--:--:--]</span>
+                        <span class="log-info">System initialized. Ready to connect.</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="footer">
+                <p>Last Updated: <span id="footerTime">--</span> IST | Auto-refresh: <span id="footerRefresh">30</span>s</p>
+                <p>🤖 NIFTY/SENSEX Trading Dashboard | Built with HTML/CSS/JavaScript</p>
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        // ========================================================================
+        // GLOBAL VARIABLES
+        // ========================================================================
+        let websocket = null;
+        let isConnected = false;
+        let autoRefreshTimer = null;
+        let charts = {};
+        let marketData = {
+            nifty: { price: 0, change: 0, changePercent: 0, high: 0, low: 0, volume: 0 },
+            sensex: { price: 0, change: 0, changePercent: 0, high: 0, low: 0, volume: 0 },
+            vix: { price: 0 },
+            priceHistory: [],
+            timestamps: []
+        };
+
+        // ========================================================================
+        // INITIALIZATION
+        // ========================================================================
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+            initializeCharts();
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            logMessage('Application initialized successfully', 'success');
+        });
+
+        function initializeApp() {
+            // Check if running during market hours
+            updateMarketStatus();
+
+            // Load saved credentials if any
+            loadCredentials();
+
+            // Initialize auto-refresh
+            const refreshInterval = document.getElementById('refreshInterval').value;
+            document.getElementById('footerRefresh').textContent = refreshInterval;
+        }
+
+        // ========================================================================
+        // EVENT LISTENERS
+        // ========================================================================
+        function setupEventListeners() {
+            // Connection buttons
+            document.getElementById('connectBtn').addEventListener('click', connectWebSocket);
+            document.getElementById('disconnectBtn').addEventListener('click', disconnectWebSocket);
+
+            // Tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
+
+            // Auto-refresh toggle
+            document.getElementById('autoRefreshToggle').addEventListener('change', function(e) {
+                if (e.target.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            });
+
+            // Refresh interval change
+            document.getElementById('refreshInterval').addEventListener('change', function(e) {
+                document.getElementById('footerRefresh').textContent = e.target.value;
+                if (document.getElementById('autoRefreshToggle').checked) {
+                    stopAutoRefresh();
+                    startAutoRefresh();
+                }
+            });
+
+            // Quick actions
+            document.getElementById('fetchDataBtn').addEventListener('click', fetchMarketData);
+            document.getElementById('clearLogsBtn').addEventListener('click', clearLogs);
+            document.getElementById('runAiAnalysisBtn').addEventListener('click', runAiAnalysis);
+        }
+
+        // ========================================================================
+        // TAB MANAGEMENT
+        // ========================================================================
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+
+            logMessage(`Switched to ${tabName} tab`, 'info');
+        }
+
+        // ========================================================================
+        // WEBSOCKET CONNECTION
+        // ========================================================================
+        function connectWebSocket() {
+            const accessToken = document.getElementById('accessToken').value.trim();
+            const clientId = document.getElementById('clientId').value.trim();
+
+            if (!accessToken || !clientId) {
+                alert('Please enter both Access Token and Client ID');
+                logMessage('Connection failed: Missing credentials', 'error');
+                return;
+            }
+
+            // Save credentials
+            saveCredentials(accessToken, clientId);
+
+            const wsUrl = `wss://api-feed.dhan.co?version=2&token=${accessToken}&clientId=${clientId}&authType=2`;
+
+            try {
+                updateConnectionStatus('connecting');
+                logMessage('Connecting to DhanHQ WebSocket...', 'info');
+
+                websocket = new WebSocket(wsUrl);
+
+                websocket.onopen = function() {
+                    isConnected = true;
+                    updateConnectionStatus('connected');
+                    logMessage('WebSocket connected successfully', 'success');
+
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('disconnectBtn').disabled = false;
+
+                    // Subscribe to market data
+                    subscribeToMarketData();
+
+                    // Start auto-refresh if enabled
+                    if (document.getElementById('autoRefreshToggle').checked) {
+                        startAutoRefresh();
+                    }
+                };
+
+                websocket.onmessage = function(event) {
+                    handleWebSocketMessage(event);
+                };
+
+                websocket.onclose = function(event) {
+                    isConnected = false;
+                    updateConnectionStatus('disconnected');
+                    logMessage(`WebSocket closed: ${event.reason || 'Unknown reason'}`, 'warning');
+
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+
+                    stopAutoRefresh();
+                };
+
+                websocket.onerror = function(error) {
+                    logMessage(`WebSocket error: ${error.message || 'Unknown error'}`, 'error');
+                };
+
+            } catch (error) {
+                updateConnectionStatus('disconnected');
+                logMessage(`Connection error: ${error.message}`, 'error');
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.close();
+                logMessage('WebSocket disconnected by user', 'info');
+            }
+            updateConnectionStatus('disconnected');
+            stopAutoRefresh();
+        }
+
+        function subscribeToMarketData() {
+            // Subscribe to NIFTY, SENSEX, and India VIX
+            const subscribeMessage = {
+                RequestCode: 15,
+                InstrumentCount: 3,
+                InstrumentList: [
+                    { ExchangeSegment: "NSE_INDEX", SecurityId: "13" },     // NIFTY 50
+                    { ExchangeSegment: "BSE_INDEX", SecurityId: "1" },      // SENSEX
+                    { ExchangeSegment: "NSE_INDEX", SecurityId: "69" }      // India VIX
+                ]
+            };
+
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.send(JSON.stringify(subscribeMessage));
+                logMessage('Subscribed to NIFTY, SENSEX, and India VIX', 'success');
+            }
+        }
+
+        function handleWebSocketMessage(event) {
+            if (event.data instanceof ArrayBuffer) {
+                processBinaryData(event.data);
+            } else {
+                try {
+                    const data = JSON.parse(event.data);
+                    logMessage(`Received: ${JSON.stringify(data)}`, 'info');
+                } catch (e) {
+                    logMessage(`Received text: ${event.data}`, 'info');
+                }
+            }
+        }
+
+        function processBinaryData(arrayBuffer) {
+            try {
+                const dataView = new DataView(arrayBuffer);
+                const feedResponseCode = dataView.getUint8(0);
+                const securityId = dataView.getUint32(4, true);
+
+                if (feedResponseCode === 2 || feedResponseCode === 4) {
+                    const ltp = dataView.getFloat32(8, true);
+                    updateMarketPrice(securityId, ltp);
+                }
+            } catch (error) {
+                logMessage(`Error processing binary data: ${error.message}`, 'error');
+            }
+        }
+
+        function updateMarketPrice(securityId, price) {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+
+            // Update market data based on security ID
+            if (securityId === 13) { // NIFTY 50
+                marketData.nifty.price = price;
+                updateUI('nifty', price);
+            } else if (securityId === 1) { // SENSEX
+                marketData.sensex.price = price;
+                updateUI('sensex', price);
+            } else if (securityId === 69) { // India VIX
+                marketData.vix.price = price;
+                updateUI('vix', price);
+            }
+
+            // Add to price history
+            marketData.priceHistory.push(price);
+            marketData.timestamps.push(timeStr);
+
+            // Keep only last 200 points
+            if (marketData.priceHistory.length > 200) {
+                marketData.priceHistory.shift();
+                marketData.timestamps.shift();
+            }
+
+            // Update charts
+            updateCharts();
+        }
+
+        // ========================================================================
+        // UI UPDATES
+        // ========================================================================
+        function updateUI(market, price) {
+            if (market === 'nifty') {
+                document.getElementById('niftyPrice').textContent = `₹${price.toFixed(2)}`;
+                updateValueClass('niftyPrice', 0); // Will be updated with actual change
+            } else if (market === 'sensex') {
+                document.getElementById('sensexPrice').textContent = `₹${price.toFixed(2)}`;
+                updateValueClass('sensexPrice', 0);
+            } else if (market === 'vix') {
+                document.getElementById('vixPrice').textContent = price.toFixed(2);
+            }
+
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-IN', { hour12: false });
+        }
+
+        function updateValueClass(elementId, value) {
+            const element = document.getElementById(elementId);
+            element.classList.remove('value-positive', 'value-negative', 'value-neutral');
+
+            if (value > 0) {
+                element.classList.add('value-positive');
+            } else if (value < 0) {
+                element.classList.add('value-negative');
+            } else {
+                element.classList.add('value-neutral');
+            }
+        }
+
+        function updateConnectionStatus(status) {
+            const dot = document.getElementById('connectionDot');
+            const text = document.getElementById('connectionText');
+
+            dot.classList.remove('status-connected', 'status-disconnected', 'status-connecting');
+
+            switch (status) {
+                case 'connected':
+                    dot.classList.add('status-connected');
+                    text.textContent = 'Connected';
+                    break;
+                case 'connecting':
+                    dot.classList.add('status-connecting');
+                    text.textContent = 'Connecting...';
+                    break;
+                case 'disconnected':
+                    dot.classList.add('status-disconnected');
+                    text.textContent = 'Disconnected';
+                    break;
+            }
+        }
+
+        function updateMarketStatus() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const day = now.getDay();
+
+            // Market hours: Mon-Fri, 9:15 AM - 3:30 PM IST
+            const isWeekday = day >= 1 && day <= 5;
+            const isMarketHours = (hours === 9 && minutes >= 15) || (hours > 9 && hours < 15) || (hours === 15 && minutes <= 30);
+
+            const badge = document.getElementById('marketStatusBadge');
+            if (isWeekday && isMarketHours) {
+                badge.textContent = 'Market Open';
+                badge.classList.remove('closed');
+                badge.classList.add('open');
+            } else {
+                badge.textContent = 'Market Closed';
+                badge.classList.remove('open');
+                badge.classList.add('closed');
+            }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false });
+            document.getElementById('currentTime').textContent = `${timeStr} IST`;
+            document.getElementById('footerTime').textContent = timeStr;
+
+            // Update market status every minute
+            if (now.getSeconds() === 0) {
+                updateMarketStatus();
+            }
+        }
+
+        // ========================================================================
+        // CHARTS
+        // ========================================================================
+        function initializeCharts() {
+            // Overview Chart
+            const ctx1 = document.getElementById('overviewChart').getContext('2d');
+            charts.overview = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: marketData.timestamps,
+                    datasets: [{
+                        label: 'Price',
+                        data: marketData.priceHistory,
+                        borderColor: '#2196f3',
+                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: '#2a2e39' },
+                            ticks: { color: '#787b86' }
+                        },
+                        x: {
+                            grid: { color: '#2a2e39' },
+                            ticks: { color: '#787b86', maxTicksLimit: 10 }
+                        }
+                    }
+                }
+            });
+
+            // Indicator Chart
+            const ctx2 = document.getElementById('indicatorChart').getContext('2d');
+            charts.indicator = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: marketData.timestamps,
+                    datasets: [
+                        {
+                            label: 'RSI',
+                            data: [],
+                            borderColor: '#9c27b0',
+                            yAxisID: 'y1',
+                            borderWidth: 2
+                        },
+                        {
+                            label: 'MACD',
+                            data: [],
+                            borderColor: '#ff9800',
+                            yAxisID: 'y2',
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: '#ffffff' } }
+                    },
+                    scales: {
+                        y1: {
+                            type: 'linear',
+                            position: 'left',
+                            grid: { color: '#2a2e39' },
+                            ticks: { color: '#787b86' }
+                        },
+                        y2: {
+                            type: 'linear',
+                            position: 'right',
+                            grid: { display: false },
+                            ticks: { color: '#787b86' }
+                        },
+                        x: {
+                            grid: { color: '#2a2e39' },
+                            ticks: { color: '#787b86', maxTicksLimit: 10 }
+                        }
+                    }
+                }
+            });
+
+            // Candlestick chart using Plotly
+            initializeCandlestickChart();
+        }
+
+        function initializeCandlestickChart() {
+            // Sample data - will be updated with real data
+            const trace = {
+                x: [],
+                close: [],
+                high: [],
+                low: [],
+                open: [],
+                type: 'candlestick',
+                name: 'NIFTY',
+                increasing: { line: { color: '#4caf50' } },
+                decreasing: { line: { color: '#f44336' } }
+            };
+
+            const layout = {
+                dragmode: 'zoom',
+                showlegend: false,
+                xaxis: {
+                    rangeslider: { visible: false },
+                    gridcolor: '#2a2e39',
+                    color: '#787b86'
+                },
+                yaxis: {
+                    gridcolor: '#2a2e39',
+                    color: '#787b86'
+                },
+                paper_bgcolor: '#131722',
+                plot_bgcolor: '#131722',
+                font: { color: '#ffffff' }
+            };
+
+            Plotly.newPlot('candlestickChart', [trace], layout, { responsive: true });
+        }
+
+        function updateCharts() {
+            // Update overview chart
+            if (charts.overview) {
+                charts.overview.data.labels = marketData.timestamps;
+                charts.overview.data.datasets[0].data = marketData.priceHistory;
+                charts.overview.update('none');
+            }
+
+            // Calculate and update indicators
+            if (marketData.priceHistory.length >= 14) {
+                const rsi = calculateRSI(marketData.priceHistory, 14);
+                const macd = calculateMACD(marketData.priceHistory);
+
+                if (charts.indicator) {
+                    charts.indicator.data.labels = marketData.timestamps;
+                    charts.indicator.data.datasets[0].data = rsi;
+                    charts.indicator.data.datasets[1].data = macd.histogram;
+                    charts.indicator.update('none');
+                }
+
+                // Update RSI display
+                const currentRSI = rsi[rsi.length - 1];
+                if (currentRSI) {
+                    document.getElementById('rsi').textContent = currentRSI.toFixed(2);
+                    document.getElementById('rsiProgress').style.width = currentRSI + '%';
+
+                    let signal = 'Neutral';
+                    if (currentRSI > 70) signal = 'Overbought';
+                    else if (currentRSI < 30) signal = 'Oversold';
+                    document.getElementById('rsiSignal').textContent = signal;
+                }
+            }
+        }
+
+        // ========================================================================
+        // TECHNICAL INDICATORS
+        // ========================================================================
+        function calculateRSI(prices, period = 14) {
+            const rsi = [];
+            const gains = [];
+            const losses = [];
+
+            for (let i = 1; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                gains.push(change > 0 ? change : 0);
+                losses.push(change < 0 ? -change : 0);
+            }
+
+            let avgGain = gains.slice(0, period).reduce((a, b) => a + b, 0) / period;
+            let avgLoss = losses.slice(0, period).reduce((a, b) => a + b, 0) / period;
+
+            for (let i = period; i < prices.length; i++) {
+                const rs = avgGain / avgLoss;
+                rsi.push(100 - (100 / (1 + rs)));
+
+                avgGain = ((avgGain * (period - 1)) + gains[i]) / period;
+                avgLoss = ((avgLoss * (period - 1)) + losses[i]) / period;
+            }
+
+            return rsi;
+        }
+
+        function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
+            const emaFast = calculateEMA(prices, fastPeriod);
+            const emaSlow = calculateEMA(prices, slowPeriod);
+
+            const macdLine = [];
+            for (let i = 0; i < emaFast.length; i++) {
+                macdLine.push(emaFast[i] - emaSlow[i]);
+            }
+
+            const signalLine = calculateEMA(macdLine, signalPeriod);
+            const histogram = [];
+
+            for (let i = 0; i < macdLine.length; i++) {
+                histogram.push(macdLine[i] - (signalLine[i] || 0));
+            }
+
+            return { macdLine, signalLine, histogram };
+        }
+
+        function calculateEMA(prices, period) {
+            const ema = [];
+            const multiplier = 2 / (period + 1);
+
+            ema[0] = prices[0];
+
+            for (let i = 1; i < prices.length; i++) {
+                ema[i] = (prices[i] - ema[i - 1]) * multiplier + ema[i - 1];
+            }
+
+            return ema;
+        }
+
+        // ========================================================================
+        // AUTO REFRESH
+        // ========================================================================
+        function startAutoRefresh() {
+            const interval = parseInt(document.getElementById('refreshInterval').value) * 1000;
+
+            stopAutoRefresh(); // Clear any existing timer
+
+            autoRefreshTimer = setInterval(() => {
+                if (isConnected) {
+                    fetchMarketData();
+                }
+            }, interval);
+
+            logMessage(`Auto-refresh enabled (${interval / 1000}s)`, 'success');
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshTimer) {
+                clearInterval(autoRefreshTimer);
+                autoRefreshTimer = null;
+                logMessage('Auto-refresh disabled', 'info');
+            }
+        }
+
+        // ========================================================================
+        // DATA FETCHING
+        // ========================================================================
+        function fetchMarketData() {
+            if (!isConnected) {
+                logMessage('Cannot fetch data: Not connected', 'warning');
+                return;
+            }
+
+            logMessage('Fetching latest market data...', 'info');
+
+            // Simulate data fetch (replace with actual API calls)
+            setTimeout(() => {
+                // Update random values for demonstration
+                const mockPrice = 24000 + Math.random() * 1000;
+                updateMarketPrice(13, mockPrice);
+
+                logMessage('Market data updated', 'success');
+            }, 500);
+        }
+
+        function runAiAnalysis() {
+            logMessage('Running AI market analysis...', 'info');
+
+            const resultDiv = document.getElementById('aiAnalysisResult');
+            resultDiv.innerHTML = '<div class="spinner"></div>';
+
+            // Simulate AI analysis
+            setTimeout(() => {
+                const analysis = {
+                    regime: 'TRENDING',
+                    confidence: 0.78,
+                    bias: 'BULLISH',
+                    recommendation: 'Consider long positions with tight stop-loss'
+                };
+
+                document.getElementById('marketRegime').textContent = analysis.regime;
+                document.getElementById('marketRegimeDesc').textContent =
+                    `Confidence: ${(analysis.confidence * 100).toFixed(1)}% | Bias: ${analysis.bias}`;
+
+                resultDiv.innerHTML = `
+                    <div class="info-box success">
+                        <span>✅</span>
+                        <div>
+                            <strong>AI Analysis Complete</strong><br>
+                            Market Regime: ${analysis.regime}<br>
+                            Recommendation: ${analysis.recommendation}
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('lastAiAnalysis').textContent =
+                    new Date().toLocaleTimeString('en-IN', { hour12: false });
+
+                logMessage('AI analysis completed', 'success');
+            }, 2000);
+        }
+
+        // ========================================================================
+        // LOGGING
+        // ========================================================================
+        function logMessage(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const timestamp = new Date().toLocaleTimeString('en-IN', { hour12: false });
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+
+            logEntry.innerHTML = `
+                <span class="log-timestamp">[${timestamp}]</span>
+                <span class="log-${type}">${message}</span>
+            `;
+
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+
+            // Keep only last 100 log entries
+            while (logContainer.children.length > 100) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            logMessage('Logs cleared', 'info');
+        }
+
+        // ========================================================================
+        // CREDENTIALS MANAGEMENT
+        // ========================================================================
+        function saveCredentials(token, clientId) {
+            try {
+                localStorage.setItem('dhan_access_token', token);
+                localStorage.setItem('dhan_client_id', clientId);
+            } catch (e) {
+                console.error('Failed to save credentials', e);
+            }
+        }
+
+        function loadCredentials() {
+            try {
+                const token = localStorage.getItem('dhan_access_token');
+                const clientId = localStorage.getItem('dhan_client_id');
+
+                if (token) document.getElementById('accessToken').value = token;
+                if (clientId) document.getElementById('clientId').value = clientId;
+            } catch (e) {
+                console.error('Failed to load credentials', e);
+            }
+        }
+
+        // ========================================================================
+        // CLEANUP
+        // ========================================================================
+        window.addEventListener('beforeunload', function() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                websocket.close();
+            }
+            stopAutoRefresh();
+        });
+    </script>
+</body>
+</html>
