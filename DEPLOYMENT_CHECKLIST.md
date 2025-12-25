@@ -1,6 +1,22 @@
-# ✅ Deployment Checklist - GitHub & Streamlit Cloud
+# ✅ Deployment Checklist - Multiple Cloud Platforms
 
 Complete checklist to deploy your NIFTY/SENSEX trading app successfully.
+
+## 🌐 Choose Your Deployment Platform
+
+1. **Streamlit Cloud** - Easiest, free tier available (see below)
+2. **Oracle Cloud** - Full control, Always Free tier ⭐ [See ORACLE_QUICKSTART.md](./ORACLE_QUICKSTART.md)
+3. **Local/VPS** - Maximum control [See SETUP_GUIDE.md](./SETUP_GUIDE.md)
+
+---
+
+## 🏛️ Quick Link: Oracle Cloud Deployment
+
+**For Oracle Cloud deployment**, use one of these guides:
+- **Quick Start (5 min)**: [ORACLE_QUICKSTART.md](./ORACLE_QUICKSTART.md)
+- **Complete Guide**: [ORACLE_DEPLOYMENT_GUIDE.md](./ORACLE_DEPLOYMENT_GUIDE.md)
+
+✅ Oracle Always Free Tier: 2 VMs, 100GB storage, 10TB/month bandwidth
 
 ---
 
