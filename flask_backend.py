@@ -530,7 +530,7 @@ def background_market_updates():
                 'sensex': get_cached_sensex_data(),
                 'timestamp': datetime.now().isoformat()
             }
-            socketio.emit('market_update', market_data, broadcast=True)
+            socketio.emit('market_update', market_data)
         except Exception as e:
             print(f"Error in background updates: {e}")
 
