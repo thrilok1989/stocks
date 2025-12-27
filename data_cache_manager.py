@@ -23,11 +23,35 @@ import threading
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Callable
-import streamlit as st
 import pandas as pd
 from functools import wraps
 from market_hours_scheduler import scheduler, is_within_trading_hours
 import config
+
+# Try importing streamlit, but make it optional for Flask backend
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    # Flask backend mode - create dummy session_state
+    class DummySessionState:
+        def __init__(self):
+            self._state = {}
+        def __contains__(self, key):
+            return key in self._state
+        def __getitem__(self, key):
+            return self._state.get(key)
+        def __setitem__(self, key, value):
+            self._state[key] = value
+        def get(self, key, default=None):
+            return self._state.get(key, default)
+
+    class DummySt:
+        def __init__(self):
+            self.session_state = DummySessionState()
+
+    st = DummySt()
+    HAS_STREAMLIT = False
 
 
 class DataCacheManager:

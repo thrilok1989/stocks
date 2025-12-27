@@ -9,12 +9,21 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Dict, List, Tuple, Optional
-import yfinance as yf
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pytz
 import requests
 warnings.filterwarnings('ignore')
+
+# Try importing yfinance, but make it optional
+try:
+    import yfinance as yf
+    HAS_YFINANCE = True
+except ImportError as e:
+    print(f"⚠️ yfinance import failed: {e}")
+    print("⚠️ Bias Analysis features will be limited without yfinance")
+    yf = None
+    HAS_YFINANCE = False
 
 # Indian Standard Time (IST)
 IST = pytz.timezone('Asia/Kolkata')

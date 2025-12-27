@@ -13,15 +13,49 @@ Data Sources (from Tab 0 - Overall Market Sentiment Dashboard):
 Note: All option chain data comes from NiftyOptionScreener.py displayed on Tab 0
 """
 
-import streamlit as st
+# Try importing streamlit, but make it optional for Flask backend
+try:
+    import streamlit as st
+    HAS_STREAMLIT = True
+except ImportError:
+    # Flask backend mode - create dummy session_state
+    class DummySessionState:
+        def __init__(self):
+            self._state = {}
+        def __contains__(self, key):
+            return key in self._state
+        def __getitem__(self, key):
+            return self._state.get(key)
+        def __setitem__(self, key, value):
+            self._state[key] = value
+        def get(self, key, default=None):
+            return self._state.get(key, default)
+
+    class DummySt:
+        def __init__(self):
+            self.session_state = DummySessionState()
+
+    st = DummySt()
+    HAS_STREAMLIT = False
+
 import pandas as pd
 from datetime import datetime
 import time
 import asyncio
 import os
 from market_hours_scheduler import is_within_trading_hours, scheduler
-from ai_analysis_adapter import run_ai_analysis, shutdown_ai_engine
-from perplexity_market_insights import render_market_insights_widget
+
+# Import AI analysis adapters (optional for Flask backend)
+try:
+    from ai_analysis_adapter import run_ai_analysis, shutdown_ai_engine
+except ImportError:
+    run_ai_analysis = None
+    shutdown_ai_engine = None
+
+try:
+    from perplexity_market_insights import render_market_insights_widget
+except ImportError:
+    render_market_insights_widget = None
 
 # Import option screener display function
 try:
